@@ -20,8 +20,9 @@ void time_init();
 timeout_t time_get_clock(); 
 
 // converts a value in microseconds to number of clock ticks
-uint32_t time_us_to_clock(uint32_t us); 
-
+inline uint32_t time_us_to_clock(uint32_t us){
+	return (F_CPU / 1000000) * us; 
+}
 #ifdef __cplusplus
 }
 #endif

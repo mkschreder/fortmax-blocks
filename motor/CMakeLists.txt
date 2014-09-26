@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 
-set (CPU_FREQ "16000000UL")
-set (CPU "atmega328p")
-set (CPU_AVRDUDE "m328p")
-#set (CPU_FREQ "18432000UL")
-#set (CPU "atmega88p")
-#set (CPU_AVRDUDE "m88")
+#set (CPU_FREQ "16000000UL")
+#set (CPU "atmega328p")
+#set (CPU_AVRDUDE "m328p")
+set (CPU_FREQ "18432000UL")
+set (CPU "atmega88p")
+set (CPU_AVRDUDE "m88")
 
 set(TARGET firmware.elf)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")

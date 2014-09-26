@@ -61,14 +61,17 @@ ISR(TIMER2_OVF_vect)
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#include <drivers/spi.h>
+#include <drivers/avrbus.h>
 #include <drivers/uart.h>
 #include <drivers/time.h>
 
+#include <string.h>
+
+struct adc_buffer_s{
+	uint8_t adc[6];
+}; 
 
 int main(){
-	_delay_ms(10);
-
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
 	time_init();
@@ -76,37 +79,33 @@ int main(){
 	//init interrupt
 	sei();
 	
-	// Hello W
-	char buffer[20];
-	uint16_t err = 0;
-	uint16_t reads = 0; 
-	const char *str = "FOOOBAAR";
-
 	uint32_t clock = time_get_clock();
-	DDRB |= _BV(1); 
+	DDRB |= _BV(1);
+
+	//adc_buffer_s adc;
+	uint8_t buffer[16];
+	memset(buffer, 0, 16);
+	
+	uint16_t reads = 0, err = 0; 
 	while(1){
-		/*time_reset();
+		//uint16_t speed[4] = {400, 500, 600, 700};
 		
-		uint32_t end = time_get_clock() + time_us_to_clock(1500); 
-		while(end > time_get_clock());
-		PORTB |= _BV(1);
-		end = time_get_clock() + time_us_to_clock(18500);
-		while(end > time_get_clock());
-		PORTB &= ~_BV(1); */
-		
-		//ext_write(0x4bef, str, 8); 
+		//uint8_t w = bus_write(0x5000, (char*)&speed, sizeof(speed));
+		//uart_printf("Written %d\n", w); 
+
 		// master
-		if(bus_read(0x4bef, buffer, 16) == 16){ // read ext address 0x4004 - slave buffer bytes 4-20
-			buffer[16] = 0; 
-			uart_printf("YES! ");
+		//adc.adc[0] = 0;
+		uint8_t rd = bus_read(0x5000, (char*)buffer, 4); 
+		//if(bus_read(0x5000, (char*)&adc, sizeof(adc))){ // read ext address 0x4004 - slave buffer bytes 4-20
+			//uart_printf("YES! %x %x %x %x\n", b[0], b[1], b[2], b[3]);
+			uart_printf("RD: %d, ADC: %d\n", rd, buffer[0]);
 			for(int c = 0; c < 16; c++){
-				uart_putc(buffer[c]);
+				uart_printf("%d ", buffer[c]);
 			}
-			uart_puts("\r\n"); 
 			reads++; 
-		} else {
-			uart_printf("Error rate: %d, %d\r\n", reads, ++err); 
-		}
+		//} else {
+		//	uart_printf("Error rate: %d, %d\r\n", reads, ++err); 
+		//}
 		
 		//_delay_ms(10); */
 	}

@@ -31,24 +31,29 @@ int main(){
 	_delay_ms(10);
 
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
-	bus_master_init();
+	
 	time_init();
 	motor_init();
 	
 	//init interrupt
 	sei();
 	
-	// Hello W
-	char buffer[20];
+	uint16_t motor_speed[4];
+	
+	bus_slave_init(0x5000, (char*)&motor_speed, sizeof(motor_speed));
+	
 	uint16_t err = 0;
 	uint16_t reads = 0; 
-	const char *str = "FOOOBAAR";
 
 	uint32_t clock = time_get_clock();
-	DDRB |= _BV(1);
-	motor_set_speed(0, 1000);
+	//DDRB |= _BV(1);
 	
+	for(int c = 0; c < 4; c++)
+		motor_speed[c] = 100;
+		
 	while(1){
+		for(int c = 0; c < 4; c++)
+			motor_set_speed(c, motor_speed[c]);
 		motor_do_epoch();
 		/*
 		uint32_t end = time_get_clock() + time_us_to_clock(1500); 

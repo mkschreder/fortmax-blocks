@@ -7,13 +7,13 @@
 
 #define MOTOR_DUTY_TIME 20000
 
-#define MOTOR_PORT PORTB
-#define MOTOR_DDR DDRB
+#define MOTOR_PORT PORTC
+#define MOTOR_DDR DDRC
 
-#define MOTOR_0_PIN PB1
-#define MOTOR_1_PIN PB0
-#define MOTOR_2_PIN PB7
-#define MOTOR_3_PIN PB6
+#define MOTOR_0_PIN PC0
+#define MOTOR_1_PIN PC1
+#define MOTOR_2_PIN PC2
+#define MOTOR_3_PIN PC3
 
 struct motor_exported_params {
 	uint16_t speed[MOTOR_COUNT];

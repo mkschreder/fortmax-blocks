@@ -22,10 +22,6 @@ timeout_t time_get_clock(){
 	return TCNT1 + _timer1_ovf * 65535;
 }
 
-uint32_t time_us_to_clock(uint32_t us){
-	return (F_CPU / 1000000) * us; 
-}
-
 ISR (TIMER1_OVF_vect)
 {
 	_timer1_ovf++;
