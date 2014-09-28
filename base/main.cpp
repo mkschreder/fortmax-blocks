@@ -16,46 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 **********************************************/
-/*
-#define F_CPU 11059200
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
-
-volatile uint8_t PWM;
-
-int main(void)
-{
-  DDRB = 0b11111111; // Saidas
-
-  PWM = 0;
-  // Configure ADC prescaler to 16. ADC clock = 11059200 / 16 = 691kHz.
-  ADMUX = (0<<REFS0) | (0<<REFS1) | (1<<ADLAR) ;
-  ADCSRA = (1<<ADEN) | (0<<ADIE) | (1<<ADPS2) | (0<<ADPS1) | (1<<ADPS0);
-
-  // Fast PWM mode, prescaler 256, no compare match output. Timer ticks at 43.2kHz, PWM frequency is 168Hz.
-  TCCR2A = (0 << COM2A1) | (0 << COM2A0) | (1 << WGM21) | (1 << WGM20);
-  TCCR2B = (0 << WGM22) | (1 << CS22) | (1 << CS21) | (0 << CS20);
-  TIMSK2 = (0 << OCIE2A) | (1 << TOIE2);
-  TCNT2 = 0;
-  sei();
-
-  while(1)
-  {
-    if(TCNT2 > PWM) PORTB &= ~(1 << PB1);
-  }
-}
-
-
-ISR(TIMER2_OVF_vect)
-{
-  ADCSRA |= (1 << ADSC);
-  loop_until_bit_is_clear(ADCSRA, ADSC);
-  if(PWM > ADCH) PWM--; else PWM++;
-  PORTB |= (1 << PB1);
-  TCNT2 = 1;
-}*/
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -63,23 +24,89 @@ ISR(TIMER2_OVF_vect)
 
 #include <drivers/avrbus.h>
 #include <drivers/uart.h>
-#include <drivers/time.h>
 
 #include <string.h>
 
+#include "device.hpp"
+#include "adc.hpp"
+#include "time.hpp"
+#include "gpio.hpp"
+
+/*
 struct adc_buffer_s{
 	uint8_t adc[6];
 }; 
+*/
+
 
 int main(){
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
-	time_init();
+	//time_init();
 	
 	//init interrupt
 	sei();
+
+	uart_printf("...");
+	_delay_us(1000);
 	
-	uint32_t clock = time_get_clock();
+	device_t *adc = device("adc");
+	device_t *timer = device("timer1_hp_timer");
+	device_t *gpio = device("gpio");
+	device_t *i2c = device("i2c");
+	
+	if(adc)
+		uart_printf("ADC Initialized!\n");
+	else {
+		uart_printf("ADC FAILED init!\n");
+		while(1);
+	}
+	if(timer)
+		uart_printf("TIMER Initialized!\n");
+	else {
+		uart_printf("TIMER FAILED init!\n");
+		while(1);
+	}
+	if(!i2c){
+		uart_printf("ERROR initializing i2c!\n");
+		while(1);
+	}
+	
+	adc->ioctl(IOC_ADC_START_CONV, 0);
+
+	timeout_t timeout = timeout_from_now(timer, 1000000UL);
+
+	uint8_t chan = 0;
+	if(gpio->ioctl(IOC_GPIO_LOCK_PIN, GPIO_PB0) != SUCCESS){
+		uart_printf("MAIN: could not lock PB0 pin!\n");
+		while(1);
+	}
+	
+	while(1){
+		if(timeout_expired(timer, timeout)){
+			uint16_t value = 0;
+
+			DDRB |= (1 << 0); 
+			
+			if(adc->read((uint8_t*)&value, 1) == SUCCESS){   
+				uart_printf("ADC chan %d val: %d\n", chan, value);
+				do {
+					chan = (chan + 1) & 0x07;
+					if(adc->ioctl(IOC_ADC_SET_CHANNEL, chan) != FAIL){
+						break;
+					} else {
+						uart_printf("ADC chan %d: not available!\n", chan);
+					} 
+				} while(1); 
+				timeout = timeout_from_now(timer, 500000UL);
+			}
+		}
+		
+		PORTB |= (1 << 0);
+		//device_tick();
+		PORTB &= ~(1 << 0); 
+	}
+	//uint32_t clock = time_get_clock();
 	DDRB |= _BV(1);
 
 	//adc_buffer_s adc;

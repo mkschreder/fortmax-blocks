@@ -19,7 +19,7 @@ file(GLOB Project_SOURCES *.cpp)
 file(GLOB Project_HEADER s*.hpp)
 
 set (CMAKE_C_COMPILER "/usr/bin/avr-gcc") 
-set (CMAKE_C_FLAGS "-ffunction-sections -std=c99 -fdata-sections -O2 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")
+set (CMAKE_C_FLAGS "-ffunction-sections -std=c99 -fdata-sections -O3 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")
 
 set (CMAKE_CXX_COMPILER "/usr/bin/avr-g++") 
 set (CMAKE_CXX_FLAGS "-ffunction-sections -fpermissive -fdata-sections -std=c++11 -O2 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")

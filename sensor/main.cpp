@@ -83,13 +83,25 @@ int main(){
 	memcpy(buffer, str, 9); 
 	bus_slave_init(0x5000, buffer, 16);
 
-	uart_printf("Ready!\r\n"); 
+	uart_printf("Ready!\r\n");
+
+	DDRD |= _BV(PD2); // pin 4 - trigger
+	DDRD |= _BV(PD3); // pin 5 - echo
+
+	uint32_t timeout = timeout_from_now(100000);
 	while(1){
+		if(timeout_expired(timeout)){
+			PORTD |= _BV(PD2);
+			_delay_us(10);
+			PORTD &= ~_BV(PD2);
+			timeout = timeout_from_now(100000);
+		}
 		//ADCSRA |= 1<<ADSC;	
 		//while(ADCSRA == (1<<ADSC));
 		//_adc = ADCH;			// Output ADCH to PortD
 		//ADCSRA |= 1<<ADSC;
-		uint16_t adc = 0;
+		
+		/*uint16_t adc = 0;
 		cli();
 		adc = _adc;
 		sei();
@@ -100,7 +112,7 @@ int main(){
 		while(!timeout_expired(time)); 
 		PORTB &= ~_BV(1); 
 		buffer[0] = (char)adc;
-		uart_printf("ADC: %d\n", _adc); 
+		uart_printf("ADC: %d\n", _adc); */
 		//uart_printf("S:%d, A: %04x\r\n", ext_state(), ext_get_address());
 	}
 }
