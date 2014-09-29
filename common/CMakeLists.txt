@@ -13,9 +13,9 @@ set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
 include_directories("../include/avr/" "./drivers")
 
-file(GLOB Project_SOURCES drivers/*.c)
+file(GLOB Project_SOURCES drivers/*.c kernel/*.c)
 #file(GLOB Project_SOURCES test/hello.c)
-file(GLOB Project_HEADER drivers/*.h)
+file(GLOB Project_HEADER drivers/*.h kernel/*.c)
 
 set (CMAKE_C_COMPILER "/usr/bin/avr-gcc") 
 set (CMAKE_C_FLAGS "-ffunction-sections -std=c99 -fdata-sections -O2 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")

@@ -9,9 +9,9 @@
 #include <inttypes.h>
 #include <compat/twi.h>
 
-#include "device.hpp"
-#include "i2c.hpp"
-#include "gpio.hpp"
+#include "device.h"
+#include "i2c.h"
+#include "gpio.h"
 
 /* I2C clock in Hz */
 #define SCL_CLOCK  10000L
@@ -140,7 +140,7 @@ void i2c_stop(void)
   Return:   0 write successful 
             1 write failed
 *************************************************************************/
-unsigned char i2c_write( unsigned char data )
+unsigned char _i2c_write( unsigned char data )
 {	
     uint8_t   twst;
     
@@ -184,38 +184,35 @@ unsigned char i2c_readNak(void)
 	return TWDR;
 }/* i2c_readNak */
 
-static device_t *_gpio = 0;
-
-static void i2c_init(){
+void i2c_init(){
 
 }
 
-static int16_t i2c_ioctl(uint8_t ioc, int32_t data){
+int16_t i2c_ioctl(handle_t h, uint8_t ioc, int32_t data){
 	return SUCCESS; 
 }
 
-static int16_t i2c_write(const uint8_t *buffer, uint16_t size){
+int16_t i2c_write(handle_t inst, const uint8_t *buffer, uint16_t size){
 	return SUCCESS; 
 }
 
-static int16_t i2c_read(uint8_t *buffer, uint16_t size){
+int16_t i2c_read(handle_t h, uint8_t *buffer, uint16_t size){
 	return SUCCESS;
 }
 
-static int16_t i2c_open(){
-	if(!_gpio) _gpio = device("gpio");
-	if(!_gpio) return FAIL;
-
-	_gpio->ioctl(IOC_GPIO_LOCK_PIN, GPIO_PC4);
-	_gpio->ioctl(IOC_GPIO_LOCK_PIN, GPIO_PC5);
+handle_t i2c_open(id_t id){
+	if(!dev_open(gpio, 0)) return FAIL;
+	
+	dev_ioctl(gpio, 0, IOC_GPIO_LOCK_PIN, GPIO_PC4);
+	dev_ioctl(gpio, 0, IOC_GPIO_LOCK_PIN, GPIO_PC5);
 	
   //TWSR = 0;                         
   //TWBR = (uint8_t)(((F_CPU/SCL_CLOCK)-16)/2);  
 
-	return SUCCESS;
+	return DEFAULT_HANDLE;
 }
 
-static int16_t i2c_close(){
+int16_t i2c_close(handle_t h){
 	return SUCCESS;
 }
 
@@ -223,15 +220,4 @@ static void i2c_tick(){
 	
 }
 
-static struct device i2c {
-	.name = "i2c", 
-	.init = &i2c_init,
-	.ioctl = &i2c_ioctl, 
-	.write = &i2c_write,
-	.read = &i2c_read,
-	.open = &i2c_open,
-	.close = &i2c_close,
-	.tick = 0
-};
-
-DRIVER(i2c); 
+DECLARE_DRIVER(i2c); 

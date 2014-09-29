@@ -12,6 +12,9 @@ Please refer to LICENSE file for licensing information.
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#warning "Standard adc driver will not be compiled!"
+#ifdef _FOO_BAR_NONE
+
 #if defined (__AVR_ATtiny13A__)
 #elif defined (__AVR_ATmega8__)
 #elif defined (__AVR_ATmega168__) || defined (__AVR_ATmega168P__)
@@ -190,3 +193,4 @@ unsigned int adc_emafilter(unsigned int newvalue, unsigned int value)
 	return value;
 }
 
+#endif

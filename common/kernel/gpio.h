@@ -1,5 +1,9 @@
 #pragma once
 
+#include "device.h"
+#include "timer.h"
+
+
 enum gpio_pin {
 	GPIO_PB0,
 	GPIO_PB1,
@@ -39,8 +43,20 @@ enum gpio_ioc {
 	IOC_GPIO_SET_INPUT,
 	IOC_GPIO_SET_OUTPUT,
 	IOC_GPIO_SET_PULLUP,
-	IOC_GPIO_SET_HIQ
+	IOC_GPIO_SET_HIQ,
+	IOC_GPIO_SET_HI,
+	IOC_GPIO_SET_LO
 };
+
+typedef struct pcint_config {
+	void (*handler)(struct pcint_config *conf);
+	timeout_t time;
+	uint8_t pin;
+	uint8_t leading; 
+	void *arg;
+} pcint_config_t;
+
+DEVICE_DECLARE(gpio); 
 /*
 #define GPIO_INPUT 0
 #define GPIO_OUTPUT 1

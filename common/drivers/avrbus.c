@@ -358,6 +358,7 @@ void (*const state_table [BUS_STATE_COUNT][EV_COUNT]) () = {
 };
 
 /// Enabled for the bus transfers
+/*
 ISR(PCINT0_vect){
 	//DDRB |= _BV(1);
 	
@@ -376,7 +377,7 @@ ISR(PCINT0_vect){
 		}
 	}
 }
-
+*/
 /// This ISR is only used when data is received in slave mode.
 /// Takes 1.5us
 /// Interrupt latency: 2us
