@@ -17,3 +17,15 @@
 #include "gpio.h"
 #include "hcsr04.h"
 #include "i2c.h"
+
+// data structures for supported kernel functions
+struct kernel_export_data {
+	uint16_t adc[6];
+	uint32_t distance[2];
+
+	char *last_error; 
+};
+
+extern struct kernel_export_data kdata; 
+
+DEVIDE_DECLARE(kernel); 

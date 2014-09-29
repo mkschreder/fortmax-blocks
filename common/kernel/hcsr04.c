@@ -143,9 +143,9 @@ void hcsr04_init() {
 	for(int c = 0; c < HCSR04_MAX; c++){
 		_sensors[c].flags.in_use = 0;
 	}
+	
 	_gpio = dev_open(gpio, 0);
 	_timer = dev_open(timer1, 0);
-	
 }
 
 handle_t hcsr04_open(id_t id){
@@ -154,7 +154,9 @@ handle_t hcsr04_open(id_t id){
 
 	hcsr04_t *s = &_sensors[id];
 	memset(s, 0, sizeof(s));
-	
+
+	s->distance = 4998; 
+	s->state = STATE_IDLE;
 	s->flags.in_use = 1;
 	
 	return s; 
@@ -180,10 +182,12 @@ int16_t hcsr04_ioctl(handle_t arg, uint8_t ioc, int32_t param){
 			break; 
 		case IOC_HCSR_TRIGGER:
 			state_table[hc->state][EV_TRIGGER](hc);
+			
 			break;
 		default:
 			return FAIL; 
 	}
+	
 	return SUCCESS; 
 }
 
@@ -199,14 +203,13 @@ int16_t hcsr04_write(handle_t arg, const uint8_t *buf, uint16_t size){
 }
 
 void hcsr04_tick(){
-	//DDRD |= _BV(5);
-	//PORTD |= _BV(5);
+	
 	for(int c = 0; c < HCSR04_MAX; c++){
 		hcsr04_t *hc = (hcsr04_t*)&_sensors[c];
-		if(hc->flags.in_use)
+		if(hc->flags.in_use){
 			state_table[hc->state][EV_TICK](hc);
+		}
 	}
-	//PORTD &= ~_BV(5); 
 	
 }
 
