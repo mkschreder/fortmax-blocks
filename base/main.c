@@ -61,15 +61,15 @@ int main(){
 	}
 	uart_puts("\e[H\e[2J"); 
 	while(1){
-		//DDRD |= _BV(5);
-		//PORTD |= _BV(5); 
-		uart_puts("\e[H\e[?25l"); 
+		DDRD |= _BV(5);
+		PORTD |= _BV(5); 
+		/*uart_puts("\e[H\e[?25l"); 
 		uart_printf("D: %08d %08d, err: %s\n",
 			kdata.distance[0], kdata.distance[1], kdata.last_error);
 		for(int c = 0; c < 6; c++)
-			uart_printf("ADC %d: %d\n", c, kdata.adc[c]);
+			uart_printf("ADC %d: %d\n", c, kdata.adc[c]);*/
 		driver_tick();
-		//PORTD &= ~_BV(5); 
+		PORTD &= ~_BV(5); 
 	}
 	/*
 	uint8_t buffer[16];
