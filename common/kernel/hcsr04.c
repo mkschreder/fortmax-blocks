@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <util/delay.h>
 
 #include <string.h>
 
@@ -25,6 +26,8 @@ typedef struct hcsr04 {
 		
 	pcint_config_t interrupt;
 	timeout_t trigger_ticks; 
+	struct async_op _current_op;
+	
 } hcsr04_t;
 
 static hcsr04_t _sensors[HCSR04_MAX];
@@ -46,15 +49,18 @@ enum hcsr_event {
 	EV_COUNT
 };
 
+static void (*const state_table[STATE_COUNT][EV_COUNT])(hcsr04_t *hc);
+
 static void _hcsr_idle(hcsr04_t *hc){
 	if(hc->echo_timeout && timeout_expired(timer1, hc->echo_timeout)){
-		hc->state = STATE_IDLE;
-		hc->distance = 4999; 
+		// simulate an echo using the ordinary state machine path (cleaner) 
+		state_table[hc->state][EV_ECHO_UP](hc);
+		state_table[hc->state][EV_ECHO_DOWN](hc); 
+		hc->distance = 4999;
 	}
 }
 
 static void _hcsr_echo_up(hcsr04_t *hc){
-	
 	hc->echo_timeout = 0; 
 	hc->echo_up_time = timer_get_clock(timer1);
 }
@@ -62,8 +68,8 @@ static void _hcsr_echo_up(hcsr04_t *hc){
 static void _hcsr_echo_down(hcsr04_t *hc){
 	hc->distance = timer_clock_to_us(timer1, timer_get_clock(timer1) - hc->echo_up_time);
 	hc->distance = hc->distance;
-	hc->state = STATE_IDLE; 
-	//PORTD &= ~_BV(7); 
+	hc->state = STATE_IDLE;
+	hc->_current_op.flags.busy = 0; 
 }
 
 static void _hcsr_trigger(hcsr04_t *hc){
@@ -75,10 +81,20 @@ static void _hcsr_trigger(hcsr04_t *hc){
 	dev_ioctl(gpio, 0, IOC_GPIO_SET_LO, hc->trig); 
 }
 
+static void _hcsr_idle_tick(hcsr04_t *hc){
+	struct async_op *op = &hc->_current_op; 
+	if(!op->flags.busy && !op->flags.cb_called){
+		op->flags.cb_called = 1;
+		if(op->callback)
+			op->callback(op->arg); 
+	}
+}
+
 static void (*const state_table[STATE_COUNT][EV_COUNT])(hcsr04_t *hc) = {
-	{ _hcsr_idle, 	_hcsr_idle, 		_hcsr_idle, 		_hcsr_trigger},
-	{ _hcsr_idle, 	_hcsr_idle, 		_hcsr_idle,			_hcsr_idle},
-	{ _hcsr_idle, 	_hcsr_echo_up, 	_hcsr_echo_down, _hcsr_idle}
+	// tick 					echo up				echo down				trigger
+	{ _hcsr_idle_tick,_hcsr_idle, 	_hcsr_idle, 	_hcsr_trigger}, // idle
+	{ _hcsr_idle, 	_hcsr_idle, 		_hcsr_idle,			_hcsr_idle},		// triggering
+	{ _hcsr_idle, 	_hcsr_echo_up, 	_hcsr_echo_down, _hcsr_idle}		// triggered
 };
 
 static void interrupt(pcint_config_t *conf){
@@ -87,8 +103,9 @@ static void interrupt(pcint_config_t *conf){
 
 	if(hc->interrupt.leading)
 		state_table[hc->state][EV_ECHO_UP](hc);
-	else
+	else {
 		state_table[hc->state][EV_ECHO_DOWN](hc);
+	}
 }
 
 static int16_t _configure(hcsr04_t *hc, struct hcsr04_config *conf){
@@ -158,7 +175,10 @@ handle_t hcsr04_open(id_t id){
 	s->distance = 4998; 
 	s->state = STATE_IDLE;
 	s->flags.in_use = 1;
-	
+
+	s->_current_op = (struct async_op){
+		.flags = 0
+	}; 
 	return s; 
 }
 
@@ -180,10 +200,6 @@ int16_t hcsr04_ioctl(handle_t arg, uint8_t ioc, int32_t param){
 			if(!param) return FAIL;
 			_configure(hc, (struct hcsr04_config*)param);
 			break; 
-		case IOC_HCSR_TRIGGER:
-			state_table[hc->state][EV_TRIGGER](hc);
-			
-			break;
 		default:
 			return FAIL; 
 	}
@@ -199,18 +215,28 @@ int16_t hcsr04_read(handle_t arg, uint8_t *buf, uint16_t size){
 }
 
 int16_t hcsr04_write(handle_t arg, const uint8_t *buf, uint16_t size){
+	if(!buf || size != sizeof(struct async_op)) return FAIL;
+	hcsr04_t *hc = (hcsr04_t*)arg;
+
+	if(hc->_current_op.flags.busy) return EBUSY;
+
+	hc->_current_op = *((struct async_op*)buf);
+	hc->_current_op.flags.busy = 1; 
+	hc->_current_op.flags.cb_called = 0;
+	
+	state_table[STATE_IDLE][EV_TRIGGER](hc);
+	
 	return SUCCESS; 
 }
 
 void hcsr04_tick(){
-	
 	for(int c = 0; c < HCSR04_MAX; c++){
 		hcsr04_t *hc = (hcsr04_t*)&_sensors[c];
+		
 		if(hc->flags.in_use){
 			state_table[hc->state][EV_TICK](hc);
 		}
 	}
-	
 }
 
 DECLARE_DRIVER(hcsr04); 

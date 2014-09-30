@@ -12,7 +12,7 @@ set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
 include_directories("../include/avr/" "../include/avr/c++/" "../common")
-link_directories("../common/")
+link_directories("./")
 
 file(GLOB Project_SOURCES kernel/*.c *.c)
 #file(GLOB Project_SOURCES test/hello.c)
@@ -35,7 +35,13 @@ add_custom_target(install
     DEPENDS ${TARGET}
 )
 
+add_custom_target(LIBDRIVERS
+	cmake ../common/ && make -C ../common/ && cp ../common/libdrivers.a .
+)
+
 # Executable
 add_executable(${TARGET} ${Project_SOURCES} ${Project_HEADERS})
+
+add_dependencies(${TARGET} LIBDRIVERS)
 
 target_link_libraries(${TARGET})

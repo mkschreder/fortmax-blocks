@@ -24,10 +24,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <string.h>
 
+struct task_list {
+	struct task_list *next;
+	void (*func)(long arg);
+	long arg;
+	uint8_t sync; 
+};
+
+typedef struct task_list task_t;
+
+task_t task[10];
+
+#define OP(_func, _arg, _next) (task_t){.next = _next, .func = _func, .arg = _arg}; 
+
+void _read_byte(long arg){
+
+}
+
 int main(){
+	task[0] = OP(_read_byte, 0, &task[1]);
+	
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
-
+	
 	handle_t kern = kernel_open(0);
 	
 	__asm("sei"); 
@@ -40,16 +59,17 @@ int main(){
 		uart_printf("ERROR INIT: %s\n", kdata.last_error);
 		while(1);
 	}
-	
+	uart_puts("\e[H\e[2J"); 
 	while(1){
-		DDRD |= _BV(5);
-		PORTD |= _BV(5); 
-		//uart_printf("DISTANCE: %d\t%d, err: %s\n",
-		//	kdata.distance[0], kdata.distance[1], kdata.last_error);
-		//for(int c = 0; c < 6; c++)
-		//	uart_printf("ADC %d: %d\n", c, kdata.adc[c]); 
+		//DDRD |= _BV(5);
+		//PORTD |= _BV(5); 
+		uart_puts("\e[H\e[?25l"); 
+		uart_printf("D: %08d %08d, err: %s\n",
+			kdata.distance[0], kdata.distance[1], kdata.last_error);
+		for(int c = 0; c < 6; c++)
+			uart_printf("ADC %d: %d\n", c, kdata.adc[c]);
 		driver_tick();
-		PORTD &= ~_BV(5); 
+		//PORTD &= ~_BV(5); 
 	}
 	/*
 	uint8_t buffer[16];

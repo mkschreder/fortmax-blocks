@@ -4,7 +4,33 @@ struct kernel_export_data kdata;
 static handle_t hcsr1, hcsr2;
 static timeout_t timeout;
 
+static struct async_op read1;
+static struct async_op read2;
+	
+void _fetch_hcsr1(long arg){
+	struct kernel_export_data *d = (struct kernel_export_data*)arg;
+	dev_read(hcsr04, hcsr1, &kdata.distance[0], sizeof(kdata.distance[0])); 
+	dev_write(hcsr04, hcsr1, &read1, sizeof(read1)); 
+}
+
+void _fetch_hcsr2(long arg){
+	struct kernel_export_data *d = (struct kernel_export_data*)arg;
+	dev_read(hcsr04, hcsr2, &kdata.distance[1], sizeof(kdata.distance[1])); 
+	dev_write(hcsr04, hcsr2, &read2, sizeof(read2)); 
+}
+
+
 void kernel_init(){
+	read1 = (struct async_op){
+		.op = HCSR04_READ,
+		.callback = &_fetch_hcsr1,
+		.arg = (long)&kdata
+	};
+	read2 = (struct async_op){
+		.op = HCSR04_READ,
+		.callback = &_fetch_hcsr2,
+		.arg = (long)&kdata
+	};
 	
 }
 
@@ -79,10 +105,15 @@ handle_t kernel_open(id_t id){
 	
 	dev_ioctl(adc, 0, IOC_ADC_START_CONV, 0);
 
+	_fetch_hcsr1(&kdata);
+	_fetch_hcsr2(&kdata);
+	
+/*
 	if(SUCCESS != hcsr04_ioctl(hcsr1, IOC_HCSR_TRIGGER, 0))
 		kdata.last_error = "NO_TRIG1"; 
 	if(SUCCESS != hcsr04_ioctl(hcsr2, IOC_HCSR_TRIGGER, 0))
-		kdata.last_error = "NO_TRIG2"; 
+		kdata.last_error = "NO_TRIG2";
+		*/
 	timeout = timeout_from_now(timer1, 10000UL);
 
 	return DEFAULT_HANDLE; 
@@ -96,9 +127,6 @@ void kernel_tick(){
 	static int8_t chan = 0;
 
 	kdata.last_error = "OK";
-	
-	//PORTB |= (1 << 0);
-	
 	
 	if(timeout_expired(timer1, timeout)){
 		uint16_t value = 0;
@@ -120,17 +148,7 @@ void kernel_tick(){
 				} 
 			} while(1); 
 		}
-		
-		if(SUCCESS != dev_read(hcsr04, hcsr1, &kdata.distance[0], sizeof(kdata.distance[0])))
-			kdata.last_error = "NO_READ1"; 
-		if(SUCCESS != dev_read(hcsr04, hcsr2, &kdata.distance[1], sizeof(kdata.distance[1])))
-			kdata.last_error = "NO_READ2"; 
-		
-		if(SUCCESS != hcsr04_ioctl(hcsr1, IOC_HCSR_TRIGGER, 0))
-			kdata.last_error = "NO_TRIG1"; 
-		if(SUCCESS != hcsr04_ioctl(hcsr2, IOC_HCSR_TRIGGER, 0))
-			kdata.last_error = "NO_TRIG2";
-		
+
 		timeout = timeout_from_now(timer1, 50000UL);
 	}
 }

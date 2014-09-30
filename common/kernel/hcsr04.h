@@ -8,7 +8,11 @@ struct hcsr04_config {
 	uint8_t echo;
 }; 
 
-#define IOC_HCSR_TRIGGER 1
+//#define IOC_HCSR_TRIGGER 1
+enum hcsr_op {
+	HCSR04_READ
+};
+
 #define IOC_HCSR_CONFIGURE 2
 
 #define HCSR_GPIO 1

@@ -28,4 +28,4 @@ struct kernel_export_data {
 
 extern struct kernel_export_data kdata; 
 
-DEVIDE_DECLARE(kernel); 
+DEVICE_DECLARE(kernel); 

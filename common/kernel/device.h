@@ -1,8 +1,5 @@
 #pragma once
 
-#define FAIL (0)
-#define SUCCESS (1)
-
 #include <avr/io.h>
 
 #define DEVICE_DECLARE(driver) \
@@ -63,13 +60,19 @@ extern void driver_register(struct driver *drv);
 
 // pass dev as pointer to the driver struct
 #define driver_init(drv) void __attribute__((constructor)) drv##_run__(); void drv##_run__()  { driver_register(&drv); }
-/*
-class __auto_init {
-	public:
-	__auto_init(void (*ptr)()){
-		if(ptr) ptr(); 
-	}
+
+struct async_op {
+	uint8_t op;
+	void (*callback)(long arg);
+	long arg;
+	struct {
+		uint8_t busy : 1;
+		uint8_t cb_called : 1;
+	} flags; 
 };
-*/
-//#define USE(driver) extern device 
-//#define INIT_DRIVER(DEV) static __auto_init DEV ## _instance(&DEV##_init); 
+
+enum device_errors {
+	FAIL,
+	SUCCESS,
+	EBUSY = -100
+}; 
