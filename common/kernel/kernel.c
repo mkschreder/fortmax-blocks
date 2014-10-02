@@ -20,42 +20,24 @@ void kernel_init(void){
 	
 }
 
-int16_t kernel_ioctl(handle_t inst, uint8_t num, int32_t data){
-	return FAIL; 
+void _adc_completed(void *arg); 
+
+void _do_measure(void *arg){
+	handle_t adc = (handle_t)arg;
+	adc_measure(adc, _adc_completed, 0); 
 }
 
-int16_t kernel_write(handle_t inst, const uint8_t *buffer, uint16_t size){
-	return FAIL; 
-}
+void _adc_completed(void *arg){
+	static uint8_t chan = 0;
+	handle_t adc = (handle_t)arg;
+	
+	kdata.adc[chan] = adc_read(adc);
 
-int16_t kernel_read(handle_t inst, uint8_t *buffer, uint16_t size){
-	return FAIL; 
-}
-
-void _adc_measure(void *p){
+	chan = (chan + 1) & 0x07;
 	
-}
-
-void _adc_completed(void *p){
-	static uint8_t chan = 0; 
-	//_delay_ms(500);
+	adc_set_channel(adc, chan);
 	
-	//DDRB |= (1 << 0); 
-	kdata.adc[chan] = adc_read(chan);
-	
-	//uart_printf("ADC chan %d val: %d, dist: %d\n", chan, value, distance1);
-	//uint16_t d1 = distance1, d2 = distance2; 
-	//uart_printf("DIS: %d\t%d\n", d2, d1); 
-	do {
-		chan = (chan + 1) & 0x07;
-		if(adc_set_channel(adc, chan) != FAIL){
-			break;
-		} else {
-			//uart_printf("ADC chan %d: not available!\n", chan);
-		} 
-	} while(1);
-	
-	timeout = timeout_from_now(timer1, 50000UL);
+	async_schedule(_do_measure, adc, 100000); 
 }
 
 handle_t kernel_open(id_t id){
@@ -66,7 +48,7 @@ handle_t kernel_open(id_t id){
 		FAIL == hcsr04_configure(hcsr1, GPIO_PB0, GPIO_PB1) || 
 		FAIL == hcsr04_configure(hcsr2, GPIO_PD6, GPIO_PD3)){
 		kdata.last_error = "NO_HC1/2"; 
-		return FAIL;
+		return INVALID_HANDLE;
 	}
 
 	hcsr04_trigger(hcsr1, _hcsr1_complete, 0);
@@ -96,8 +78,6 @@ handle_t kernel_open(id_t id){
 		return INVALID_HANDLE; 
 	}
 
-	adc_measure(0, _adc_completed, 0);
-
 	timeout = timeout_from_now(timer1, 10000UL);
 
 	return DEFAULT_HANDLE; 
@@ -108,14 +88,7 @@ int16_t kernel_close(handle_t inst){
 }
 
 void kernel_tick(void){
-	static int8_t chan = 0;
-
 	kdata.last_error = "OK";
-	
-	if(timeout && timeout_expired(timer1, timeout)){
-		adc_measure(adc, _adc_completed, 0);
-		timeout = 0; 
-	}
 }
 
 DECLARE_DRIVER(kernel); 

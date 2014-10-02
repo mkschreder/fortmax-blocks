@@ -59,7 +59,7 @@ int main(void){
 		uart_printf("ERROR INIT: %s\n", kdata.last_error);
 		while(1);
 	}
-	
+
 	uart_puts("\e[H\e[2J");
 	
 	while(1){

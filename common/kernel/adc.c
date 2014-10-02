@@ -28,16 +28,13 @@ void adc_init(void){
 	//_adc_port = PORTC; 
 }
 
-int16_t adc_write(handle_t h, const uint8_t *buffer, uint16_t size){
-	return 0; 
-}
 
-int16_t adc_read(handle_t h, uint8_t *buffer, uint16_t size){
-	//if(ADCSRA == (1<<ADSC)) return FAIL;
-	if(!(_adc & 0x8000)) return FAIL;
-	*((uint16_t*)buffer) = _adc & 0x7fff;
-	_adc = 0;
-	return SUCCESS; 
+uint16_t adc_read(handle_t h){
+	uint8_t sreg = SREG;
+	cli(); 
+	uint16_t val = _adc & 0x7fff;
+	SREG = sreg;
+	return val; 
 }
 
 int8_t adc_set_channel(handle_t dev, uint8_t chan){
@@ -109,7 +106,7 @@ handle_t adc_open(id_t id){
 
 	_in_use = 1;
 	
-	return INVALID_HANDLE; 
+	return DEFAULT_HANDLE; 
 }
 
 int16_t adc_close(handle_t inst){
