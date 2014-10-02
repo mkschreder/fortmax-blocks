@@ -47,7 +47,7 @@ void adxl345_getpitchroll(double ax, double ay, double az, double *pitch, double
 /*
  * initialize the accellerometer
  */
-void adxl345_init() {
+void adxl345_init(void) {
 	i2c_rep_start(ADXL345_ADDR | I2C_WRITE);
 	uint8_t range = ADXL345_RANGE | (ADXL345_FULLRANGE<<3);
 	i2c_write(0x31);
@@ -94,7 +94,7 @@ void adxl345_writeoffset(int8_t offsetx, int8_t offsety, int8_t offsetz) {
 /*
  * wait for xyz data to be ready
  */
-void adxl345_waitfordataready() {
+void adxl345_waitfordataready(void) {
 	//wait until data is ready
 	unsigned char status = 0;
 	i2c_start_wait(ADXL345_ADDR | I2C_WRITE);

@@ -17,7 +17,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * setup motor ports here
  */
-void dcmotorpwmsoft_setup() {
+void dcmotorpwmsoft_setup(void) {
 	uint8_t i = 0;
 
 	//motor 1
@@ -38,7 +38,7 @@ void dcmotorpwmsoft_setup() {
 /*
  * init a motor
  */
-void dcmotorpwmsoft_init() {
+void dcmotorpwmsoft_init(void) {
 	dcmotorpwmsoft_setup();
 
 	//set ports

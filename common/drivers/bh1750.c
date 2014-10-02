@@ -18,7 +18,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * init bh1750
  */
-void bh1750_init() {
+void bh1750_init(void) {
 
 	#if BH1750_I2CINIT == 1
 	//init i2c
@@ -35,7 +35,7 @@ void bh1750_init() {
 /*
  * read lux value
  */
-uint16_t bh1750_getlux() {
+uint16_t bh1750_getlux(void) {
 	uint16_t ret = 0;
 
 	i2c_start_wait(BH1750_ADDR | I2C_READ);

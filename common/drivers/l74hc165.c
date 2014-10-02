@@ -18,7 +18,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * init the shift register
  */
-void l74hc165_init() {
+void l74hc165_init(void) {
 	//output
 	L74HC165_DDR |= (1 << L74HC165_CLOCKPIN);
 	L74HC165_DDR |= (1 << L74HC165_LOADPIN);

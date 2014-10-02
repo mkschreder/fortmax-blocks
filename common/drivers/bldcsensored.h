@@ -125,14 +125,14 @@ Please refer to LICENSE file for licensing information.
 
 
 //functions
-extern void bldcsensored_init();
-extern uint8_t bldcsensored_getspindirection();
-extern uint16_t bldcsensored_getspeed();
+extern void bldcsensored_init(void);
+extern uint8_t bldcsensored_getspindirection(void);
+extern uint16_t bldcsensored_getspeed(void);
 extern void bldcsensored_setspeed(uint16_t speed);
-extern uint8_t bldcsensored_getdirection();
+extern uint8_t bldcsensored_getdirection(void);
 extern void bldcsensored_setdirection(uint8_t direction);
-extern void bldcsensored_setstop();
-extern void bldcsensored_setstart();
+extern void bldcsensored_setstop(void);
+extern void bldcsensored_setstart(void);
 #if BLDCSENSORED_DEBUG == 1
 extern volatile uint8_t bldcsensored_debugstate;
 extern volatile uint8_t bldcsensored_debugposerror;

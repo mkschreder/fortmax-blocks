@@ -87,8 +87,8 @@ Please refer to LICENSE file for licensing information.
  //enable print info function
 #define NRF24L01_PRINTENABLE 1
 
-extern void nrf24l01_init();
-extern uint8_t nrf24l01_getstatus();
+extern void nrf24l01_init(void);
+extern uint8_t nrf24l01_getstatus(void);
 extern uint8_t nrf24l01_readready(uint8_t* pipe); 
 extern void nrf24l01_read(uint8_t *data);
 extern uint8_t nrf24l01_write(uint8_t *data);

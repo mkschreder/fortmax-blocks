@@ -48,10 +48,10 @@ References:
 //full-scale frequency is the maximum operating frequency of the device without saturation
 #define TSL235_FULLSCALE 500000
 
-extern void tsl235_init();
-extern uint32_t tsl235_getfreq();
+extern void tsl235_init(void);
+extern uint32_t tsl235_getfreq(void);
 extern int16_t tsl235_getilluminancebyfreq(uint32_t freq);
-extern int16_t tsl235_getilluminance();
+extern int16_t tsl235_getilluminance(void);
 
 
 #endif

@@ -16,7 +16,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * spi initialize
  */
-void spi_init() {
+void spi_init(void) {
     SPI_DDR &= ~((1<<SPI_MOSI) | (1<<SPI_MISO) | (1<<SPI_SS) | (1<<SPI_SCK)); //input
     SPI_DDR |= ((1<<SPI_MOSI) | (1<<SPI_SS) | (1<<SPI_SCK)); //output
 

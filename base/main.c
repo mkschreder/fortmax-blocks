@@ -41,35 +41,48 @@ void _read_byte(long arg){
 
 }
 
-int main(){
+int main(void){
 	task[0] = OP(_read_byte, 0, &task[1]);
 	
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
 	
 	handle_t kern = kernel_open(0);
-	
+
 	__asm("sei"); 
 
-	uart_printf("...");
+	uart_printf("...\n");
 
-	delay_us(timer1, 1000000UL);
+	//delay_us(timer1, 1000000UL);
 
 	if(!kern){
 		uart_printf("ERROR INIT: %s\n", kdata.last_error);
 		while(1);
 	}
-	uart_puts("\e[H\e[2J"); 
+	
+	uart_puts("\e[H\e[2J");
+	
 	while(1){
-		DDRD |= _BV(5);
-		PORTD |= _BV(5); 
+		uart_puts("\e[H\e[?25l");
+		uart_printf("KVARS: \n"); 
+		struct kvar *vars = kvar_get_all();
+
+		uart_printf("Decl: %d %d     \n", (uint16_t)kdata.distance[0], (uint16_t)kdata.distance[1]);
+		timeout_t time = timer_get_clock(0); 
+		uart_printf("TIME: %04x%04x\n", (uint16_t)(time >> 16), (uint16_t)time); 
+		if(vars){
+			list_for_each(i, &vars->list) {
+				struct kvar *ent = list_entry(i, struct kvar, list); 
+				uart_printf("%02x %s\n", (uint8_t)(ent->id), ent->name);
+			}
+		}
+
 		/*uart_puts("\e[H\e[?25l"); 
 		uart_printf("D: %08d %08d, err: %s\n",
 			kdata.distance[0], kdata.distance[1], kdata.last_error);
 		for(int c = 0; c < 6; c++)
 			uart_printf("ADC %d: %d\n", c, kdata.adc[c]);*/
 		driver_tick();
-		PORTD &= ~_BV(5); 
 	}
 	/*
 	uint8_t buffer[16];

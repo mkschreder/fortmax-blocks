@@ -45,6 +45,6 @@ References:
 #define DS18B20_DECIMALSTEPS DS18B20_DECIMALSTEPS_12BIT
 
 //functions
-extern double ds18b20_gettemp();
+extern double ds18b20_gettemp(void);
 
 #endif

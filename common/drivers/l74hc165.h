@@ -24,7 +24,7 @@ Please refer to LICENSE file for licensing information.
 //setup number of chip attached to the board
 #define L74HC165_ICNUMBER 2
 
-extern void l74hc165_init();
+extern void l74hc165_init(void);
 extern void l74hc165_shiftin(uint8_t *bytearray);
 
 #endif

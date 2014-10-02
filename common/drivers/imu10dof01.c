@@ -39,7 +39,7 @@ volatile static uint8_t imu10dof01_isattitudeenabled = 0;
  * calibrate gyro offset if the chip is not moving
  */
 #define IMU10DOF01_imu10dof01_calibrategyrooffsetsteps 100
-void imu10dof01_calibrategyrooffset() {
+void imu10dof01_calibrategyrooffset(void) {
 	int16_t gxraw = 0;
 	int16_t gyraw = 0;
 	int16_t gzraw = 0;
@@ -104,7 +104,7 @@ void imu10dof01_calibrategyrooffset() {
 /*
  * initialize dof components
  */
-void imu10dof01_init() {
+void imu10dof01_init(void) {
 	#if IMU10DOF01_I2CINIT == 1
 	//init i2c
 	i2c_init();
@@ -139,14 +139,14 @@ void imu10dof01_init() {
 /*
  * enable attitude computation
  */
-void imu10dof01_attitudeenabled() {
+void imu10dof01_attitudeenabled(void) {
 	imu10dof01_isattitudeenabled = 1;
 }
 
 /*
  * disable attitude computation
  */
-void imu10dof01_attituddisabled() {
+void imu10dof01_attituddisabled(void) {
 	imu10dof01_isattitudeenabled = 0;
 }
 
@@ -263,7 +263,7 @@ void imu10dof01_mahonyUpdate(float gx, float gy, float gz, float ax, float ay, f
 /*
  * update quaternion
  */
-void imu10dof01_updateQuaternion() {
+void imu10dof01_updateQuaternion(void) {
 	double axg = 0;
 	double ayg = 0;
 	double azg = 0;

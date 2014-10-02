@@ -49,9 +49,9 @@ References:
 #define imu10dof01_twoKiDef (2.0f * 0.1f) // 2 * integral gain
 
 //functions
-extern void imu10dof01_init();
-extern void imu10dof01_attitudeenabled();
-extern void imu10dof01_attituddisabled();
+extern void imu10dof01_init(void);
+extern void imu10dof01_attitudeenabled(void);
+extern void imu10dof01_attituddisabled(void);
 extern void imu10dof01_getQuaternion(double *qw, double *qx, double *qy, double *qz) ;
 extern void imu10dof01_getRollPitchYaw(double *roll, double *pitch, double *yaw);
 #if IMU10DOF01_BAROMETERENABLED == 1

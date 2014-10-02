@@ -60,7 +60,7 @@ static const uint8_t PROGMEM sevsegascii_table[] = {
 /*
  * init the seven segment ports
  */
-void sevseg_init() {
+void sevseg_init(void) {
 	//output
 	SEVSEG_DDR |= (1 << SEVSEG_PINA);
 	SEVSEG_DDR |= (1 << SEVSEG_PINB);
@@ -117,7 +117,7 @@ void sevseg_puthex(uint8_t hex) {
 /*
  * select which display to run, continuous iteration to next display
  */
-uint8_t sevseg_selnextdisplay() {
+uint8_t sevseg_selnextdisplay(void) {
 	//off digit
 	if(SEVSEG_TYPE == SEVSEG_TYPECC || SEVSEG_TYPE == SEVSEG_TYPECAT)
 		SEVSEG_PORT = 0X00;

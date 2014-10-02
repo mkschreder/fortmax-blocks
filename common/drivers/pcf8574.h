@@ -24,7 +24,7 @@ volatile uint8_t pcf8574_pinstatus[PCF8574_MAXDEVICES];
 
 
 //functions
-void pcf8574_init();
+void pcf8574_init(void);
 extern int8_t pcf8574_getoutput(uint8_t deviceid);
 extern int8_t pcf8574_getoutputpin(uint8_t deviceid, uint8_t pin);
 extern int8_t pcf8574_setoutput(uint8_t deviceid, uint8_t data);

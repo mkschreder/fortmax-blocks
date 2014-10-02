@@ -4,9 +4,7 @@
 #include "i2c.h"
 #include "bmp085.h"
 
-static i2c_command_t trans;
-
-void bmp085_init(){
+void bmp085_init(void){
 	
 }
 
@@ -37,7 +35,7 @@ int16_t bmp085_close(handle_t h){
 	return SUCCESS; 
 }
 
-static void bmp085_tick(){
+static void bmp085_tick(void){
 	
 }
 

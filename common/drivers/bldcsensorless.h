@@ -116,17 +116,17 @@ Please refer to LICENSE file for licensing information.
 
 
 //functions
-extern uint16_t bldcsensorless_getspeed();
+extern uint16_t bldcsensorless_getspeed(void);
 extern void bldcsensorless_setspeed(uint16_t speed);
-extern uint8_t bldcsensorless_getdirection();
+extern uint8_t bldcsensorless_getdirection(void);
 extern void bldcsensorless_setdirection(uint8_t direction);
-extern void bldcsensorless_setstop();
-extern void bldcsensorless_setstart();
+extern void bldcsensorless_setstop(void);
+extern void bldcsensorless_setstart(void);
 extern void bldcsensorless_soundercyle(uint16_t ontime, uint16_t offtime);
 extern void bldcsensorless_sounder(uint8_t repetitions, uint8_t duration, uint16_t ontime, uint16_t offtime);
-extern void bldcsensorless_poweronsound();
-extern void bldcsensorless_init();
+extern void bldcsensorless_poweronsound(void);
+extern void bldcsensorless_init(void);
 extern void bldcsensorless_runstep(uint8_t step);
-extern void bldcsensorless_startupmotor();
+extern void bldcsensorless_startupmotor(void);
 
 #endif

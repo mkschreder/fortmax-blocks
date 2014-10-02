@@ -52,7 +52,7 @@ void adc_setchannel(uint8_t channel)
 /*
  * read from selected adc channel
  */
-uint16_t adc_readsel()
+uint16_t adc_readsel(void)
 {
 	ADCSRA |= (1 << ADSC); // Start conversion
 	while( !(ADCSRA & (1<<ADIF)) ); // Wait for conversion to complete
@@ -73,7 +73,7 @@ uint16_t adc_read(uint8_t channel)
 /*
  * init adc
  */
-void adc_init() 
+void adc_init(void) 
 {
 	// Set ADC reference
 	#if defined (__AVR_ATtiny13A__)
@@ -138,7 +138,7 @@ void adc_init()
 /*
  * get reference voltage using bandgap voltage
  */
-double acd_getrealvref()
+double acd_getrealvref(void)
 {
 	double intvoltage = 0;
 	#if defined (__AVR_ATmega8__) || defined (__AVR_ATmega168__) || defined (__AVR_ATmega168P__) || defined (__AVR_ATmega328__) || defined (__AVR_ATmega328P__)

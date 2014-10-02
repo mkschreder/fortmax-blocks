@@ -27,7 +27,7 @@ uint8_t stepper02_motortypebipolarfull_lookup[] = STEPPER02_MOTORTYPEBIPOLARFULL
 /*
  * setup motor parameters here
  */
-void stepper02_setup() {
+void stepper02_setup(void) {
 	//setup arrays
 	uint8_t stepper02_setuptype[] = {
 			STEPPER02_MOTOR1TYPE,
@@ -183,7 +183,7 @@ uint16_t stepper02_getstep(uint8_t motorid) {
 /*
  * init a motor
  */
-void stepper02_init() {
+void stepper02_init(void) {
 	uint8_t i = 0;
 
 	//set timer0

@@ -47,8 +47,8 @@ Please refer to LICENSE file for licensing information.
 #define AUDIOGET_AVARAGECORRECTION 1
 
 //functions
-extern void audioget_init();
-extern int16_t audioget_getrmsval();
+extern void audioget_init(void);
+extern int16_t audioget_getrmsval(void);
 extern int16_t audioget_getspl(float voltnow, float voltref, float dbref);
 
 #endif

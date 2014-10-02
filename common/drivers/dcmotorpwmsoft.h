@@ -54,7 +54,7 @@ volatile dcmotorpwmsoft_arrayt dcmotorpwmsoft_array[DCMOTORPWMSOFT_MOTORNUM];
 #define DCMOTORPWMSOFT_DIRECTIONSTOP 0
 
 //functions
-extern void dcmotorpwmsoft_init();
+extern void dcmotorpwmsoft_init(void);
 extern void dcmotorpwmsoft_gostop(uint8_t motorid);
 extern void dcmotorpwmsoft_goforward(uint8_t motorid, uint16_t velocity);
 extern void dcmotorpwmsoft_gobackward(uint8_t motorid, uint16_t velocity);

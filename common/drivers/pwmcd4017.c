@@ -119,7 +119,7 @@ void pwmcd4017_set(uint8_t id, uint16_t value) {
 /*
  * init cd4017
  */
-void pwmcd4017_init() {
+void pwmcd4017_init(void) {
 	cli();
 
 	//setup chip 1

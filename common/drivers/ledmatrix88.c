@@ -19,14 +19,14 @@ volatile uint8_t ledmatrix88_row = 0; //contains row data
 /*
  * get current col value
  */
-uint8_t ledmatrix88_getcol() {
+uint8_t ledmatrix88_getcol(void) {
 	return ledmatrix88_col;
 }
 
 /*
  * get current row value
  */
-uint8_t ledmatrix88_gettrow() {
+uint8_t ledmatrix88_gettrow(void) {
 	return ledmatrix88_row;
 }
 
@@ -47,7 +47,7 @@ void ledmatrix88_setrow(uint8_t row) {
 /*
  * set ouput to zero
  */
-void ledmatrix88_zero() {
+void ledmatrix88_zero(void) {
 	ledmatrix88_setcol(0);
 	ledmatrix88_setrow(0);
 }

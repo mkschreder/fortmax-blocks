@@ -11,6 +11,9 @@
 // external device support
 #define CONFIG_HCSR04 Y
 
+#include "object.h"
+#include "async.h"
+#include "kvar.h"
 #include "device.h"
 #include "adc.h"
 #include "timer.h"
@@ -27,5 +30,7 @@ struct kernel_export_data {
 };
 
 extern struct kernel_export_data kdata; 
+handle_t kernel_open(id_t id);
 
-DEVICE_DECLARE(kernel); 
+//DEVICE_DECLARE(kernel); 
+

@@ -63,9 +63,9 @@ Notes:
 
 
 //functions
-void bmp085_init();
-long bmp085_getpressure();
-int16_t bmp085_getaltitude();
-int16_t bmp085_gettemperature();
+void bmp085_init(void);
+long bmp085_getpressure(void);
+int16_t bmp085_getaltitude(void);
+int16_t bmp085_gettemperature(void);
 
 #endif

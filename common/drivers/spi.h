@@ -25,7 +25,7 @@ Please refer to LICENSE file for licensing information.
 #define SPI_SCK PB5
 #define SPI_SS PB2
 
-extern void spi_init();
+extern void spi_init(void);
 extern uint8_t spi_writereadbyte(uint8_t data);
 
 #endif

@@ -20,7 +20,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * initialize
  */
-void pcf8574_init() {
+void pcf8574_init(void) {
 	//init i2c
 	i2c_init();
 	_delay_us(10);

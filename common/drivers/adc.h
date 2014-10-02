@@ -28,9 +28,9 @@ Please refer to LICENSE file for licensing information.
 //functions
 extern void adc_setchannel(uint8_t channel);
 extern uint16_t adc_read(uint8_t channel);
-extern uint16_t adc_readsel();
-extern void adc_init();
-extern double acd_getrealvref();
+extern uint16_t adc_readsel(void);
+extern void adc_init(void);
+extern double acd_getrealvref(void);
 extern long adc_getresistence(uint16_t adcread, uint16_t adcbalanceresistor);
 extern double adc_getvoltage(uint16_t adcread, double adcvref);
 extern unsigned int adc_emafilter(unsigned int newvalue, unsigned int value);

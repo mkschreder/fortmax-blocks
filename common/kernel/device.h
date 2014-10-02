@@ -1,23 +1,17 @@
 #pragma once
 
-#include <avr/io.h>
+#include "types.h"
 
-#define DEVICE_DECLARE(driver) \
-	void driver##_init(); \
+#define DEVICE_DECLARE(driver)
+/*\
+	void driver##_init(void); \
 	int16_t driver##_ioctl(handle_t inst, uint8_t num, int32_t data); \
 	int16_t driver##_write(handle_t inst, const uint8_t *buffer, uint16_t size);\
 	int16_t driver##_read(handle_t inst, uint8_t *buffer, uint16_t size);\
 	handle_t driver##_open(id_t id);\
 	int16_t driver##_close(handle_t inst);\
-/*	static struct driver##_init__ {\
-		public: driver##_init(){driver##_init();}\
-	} driver##_static_init__; \*/
+*/
 
-typedef void* handle_t;
-#define INVALID_HANDLE 0
-#define DEFAULT_HANDLE ((handle_t)0xffff)
-
-typedef int16_t id_t;
 
 #define dev_ioctl(driver, instance, num, data) driver##_ioctl((handle_t)instance, num, (int32_t)data)
 #define dev_read(driver, inst, buf, size) driver##_read((handle_t)inst, (uint8_t*)buf, size)
@@ -28,14 +22,15 @@ typedef int16_t id_t;
 
 typedef struct driver {
 	const char *name; 
-	void (*tick)();
-	
-	void (*init)();
+	void (*tick)(void);
+	void (*init)(void);
+
+	/*
 	int16_t (*ioctl)(handle_t, uint8_t num, int32_t data); 
 	int16_t (*write)(handle_t, const uint8_t *buffer, uint16_t size);
 	int16_t (*read)(handle_t,uint8_t *buffer, uint16_t size);
 	handle_t (*open)(id_t id);
-	int16_t (*close)(handle_t);
+	int16_t (*close)(handle_t);*/
 
 	struct driver *next, *prev; 
 } driver_t;
@@ -44,35 +39,20 @@ typedef struct driver {
 static struct driver _name##_struct = { \
 	.name = "" #_name "", \
 	.tick = &_name##_tick,\
-	.init = &_name##_init,\
-	.ioctl = &_name##_ioctl, \
-	.write = &_name##_write,\
-	.read = &_name##_read,\
-	.open = &_name##_open,\
-	.close = &_name##_close\
+	.init = &_name##_init\
 };\
 driver_init(_name##_struct);
 
 //extern void device_register(struct device *dev);
-extern void driver_tick();
+extern void driver_tick(void);
 extern void driver_register(struct driver *drv); 
 //extern struct device* device(const char *dev); 
 
 // pass dev as pointer to the driver struct
-#define driver_init(drv) void __attribute__((constructor)) drv##_run__(); void drv##_run__()  { driver_register(&drv); }
+#define driver_init(drv) void __attribute__((constructor)) drv##_run__(void); void drv##_run__(void)  { driver_register(&drv); }
 
-struct async_op {
-	uint8_t op;
-	void (*callback)(long arg);
-	long arg;
-	struct {
-		uint8_t busy : 1;
-		uint8_t cb_called : 1;
-	} flags; 
-};
+#define CONSTRUCTOR(name) void __attribute__((constructor)) name(void)
 
 enum device_errors {
-	FAIL,
-	SUCCESS,
 	EBUSY = -100
 }; 

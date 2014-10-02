@@ -27,7 +27,7 @@ typedef struct {
 volatile dcmotor_arrayt dcmotor_array[DCMOTOR_MOTORNUM];
 
 //functions
-extern void dcmotor_init();
+extern void dcmotor_init(void);
 extern void dcmotor_gostop(uint8_t motorid);
 extern void dcmotor_goforward(uint8_t motorid);
 extern void dcmotor_gobackward(uint8_t motorid);

@@ -4,7 +4,7 @@
 #include "timer.h"
 
 
-enum gpio_pin {
+typedef enum gpio_pin {
 	GPIO_PB0,
 	GPIO_PB1,
 	GPIO_PB2,
@@ -33,8 +33,9 @@ enum gpio_pin {
 	GPIO_PD7,
 
 	GPIO_COUNT
-};
+} gpio_pin_t;
 
+/*
 enum gpio_ioc {
 	IOC_GPIO_LOCK_PIN,
 	IOC_GPIO_UNLOCK_PIN,
@@ -47,16 +48,34 @@ enum gpio_ioc {
 	IOC_GPIO_SET_HI,
 	IOC_GPIO_SET_LO
 };
-
-typedef struct pcint_config {
-	void (*handler)(struct pcint_config *conf);
+*/
+typedef struct pcint_info {
+	void (*handler)(struct pcint_info *conf);
 	timeout_t time;
 	uint8_t pin;
-	uint8_t leading; 
+	uint8_t leading;
+	struct {
+		uint8_t enabled : 1;
+	} flags; 
 	void *arg;
 } pcint_config_t;
 
-DEVICE_DECLARE(gpio); 
+typedef struct gpio_flags {
+	uint8_t output : 1; 
+	uint8_t pullup : 1; 
+} gpio_flags_t;
+
+handle_t gpio_open(id_t id);
+int16_t gpio_close(handle_t dev);
+
+int8_t gpio_configure(handle_t dev, gpio_pin_t pin, gpio_flags_t flags); 
+int8_t gpio_enable_pcint(handle_t dev, gpio_pin_t pin, void (*handler)(struct pcint_info *info), void *arg);
+int8_t gpio_set(handle_t dev, gpio_pin_t pin, uint8_t value);
+int8_t gpio_get(handle_t dev, gpio_pin_t pin);
+int8_t gpio_register(handle_t dev, gpio_pin_t pin);
+int8_t gpio_release(handle_t dev, gpio_pin_t pin);
+
+//DEVICE_DECLARE(gpio); 
 /*
 #define GPIO_INPUT 0
 #define GPIO_OUTPUT 1

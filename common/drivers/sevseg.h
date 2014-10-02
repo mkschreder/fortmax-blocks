@@ -47,10 +47,10 @@ Please refer to LICENSE file for licensing information.
 #define SEVSEG_USONTIME 1000
 
 //functions
-extern void sevseg_init();
-extern void sevseg_setfirstdisplayactive();
+extern void sevseg_init(void);
+extern void sevseg_setfirstdisplayactive(void);
 extern void sevseg_putc(uint8_t c, uint8_t dot);
 extern void sevseg_puthex(uint8_t h);
-extern uint8_t sevseg_selnextdisplay();
+extern uint8_t sevseg_selnextdisplay(void);
 
 #endif

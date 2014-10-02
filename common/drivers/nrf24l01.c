@@ -10,7 +10,7 @@ Please refer to LICENSE file for licensing information.
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/delay.h>
+#include <util/delay.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -127,7 +127,7 @@ void nrf24l01_settxaddr(uint8_t *addr) {
 /*
  * flush RX fifo
  */
-void nrf24l01_flushRXfifo() {
+void nrf24l01_flushRXfifo(void) {
 	nrf24l01_CSNlo; //low CSN
 	spi_writereadbyte(NRF24L01_CMD_FLUSH_RX);
 	nrf24l01_CSNhi; //high CSN
@@ -136,7 +136,7 @@ void nrf24l01_flushRXfifo() {
 /*
  * flush RX fifo
  */
-void nrf24l01_flushTXfifo() {
+void nrf24l01_flushTXfifo(void) {
 	nrf24l01_CSNlo; //low CSN
 	spi_writereadbyte(NRF24L01_CMD_FLUSH_TX);
 	nrf24l01_CSNhi; //high CSN
@@ -145,7 +145,7 @@ void nrf24l01_flushTXfifo() {
 /*
  * set chip as RX
  */
-void nrf24l01_setRX() {
+void nrf24l01_setRX(void) {
 	nrf24l01_setrxaddr(0, nrf24l01_addr0); //restore pipe 0 address
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PRIM_RX)); //prx mode
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PWR_UP)); //power up
@@ -159,7 +159,7 @@ void nrf24l01_setRX() {
 /*
  * set chip as TX
  */
-void nrf24l01_setTX() {
+void nrf24l01_setTX(void) {
 	nrf24l01_CElo; //stop listening
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~(1<<NRF24L01_REG_PRIM_RX)); //ptx mode
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PWR_UP)); //power up
@@ -218,7 +218,7 @@ void nrf24l01_printinfo(void(*prints)(const char *), void(*printc)(unsigned char
 /*
  * get status register
  */
-uint8_t nrf24l01_getstatus() {
+uint8_t nrf24l01_getstatus(void) {
 	uint8_t status = 0;
 	nrf24l01_CSNlo; //low CSN
 	status = spi_writereadbyte(NRF24L01_CMD_NOP); //get status, send NOP request
@@ -308,7 +308,7 @@ uint8_t nrf24l01_write(uint8_t *data) {
 /*
  * set power level
  */
-void nrf24l01_setpalevel() {
+void nrf24l01_setpalevel(void) {
   uint8_t setup = nrf24l01_readregister(NRF24L01_REG_RF_SETUP);
   setup &= ~((1<<NRF24L01_REG_RF_PWR_LOW) | (1<<NRF24L01_REG_RF_PWR_HIGH));
 
@@ -330,7 +330,7 @@ void nrf24l01_setpalevel() {
 /*
  * set datarate
  */
-void nrf24l01_setdatarate() {
+void nrf24l01_setdatarate(void) {
   uint8_t setup = nrf24l01_readregister(NRF24L01_REG_RF_SETUP) ;
 
   setup &= ~((1<<NRF24L01_REG_RF_DR_LOW) | (1<<NRF24L01_REG_RF_DR_HIGH));
@@ -351,7 +351,7 @@ void nrf24l01_setdatarate() {
 /*
  * set crc length
  */
-void nrf24l01_setcrclength() {
+void nrf24l01_setcrclength(void) {
   uint8_t config = nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~((1<<NRF24L01_REG_CRCO) | (1<<NRF24L01_REG_EN_CRC));
 
   if (NRF24L01_RF24_CRC == NRF24L01_RF24_CRC_DISABLED) {
@@ -371,7 +371,7 @@ void nrf24l01_setcrclength() {
 /*
  * init nrf24l01
  */
-void nrf24l01_init() {
+void nrf24l01_init(void) {
 	//setup port
 	NRF24L01_DDR |= (1<<NRF24L01_CSN); //output
 	NRF24L01_DDR |= (1<<NRF24L01_CE); //output

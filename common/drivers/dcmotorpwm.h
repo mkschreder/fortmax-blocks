@@ -27,8 +27,8 @@ Please refer to LICENSE file for licensing information.
 #define DCMOTORPWM_PRESCALER (1 << CS11)
 
 //functions
-extern void dcmotorpwm_init();
-extern void dcmotorpwm_gostop();
+extern void dcmotorpwm_init(void);
+extern void dcmotorpwm_gostop(void);
 void dcmotorpwm_goforward(uint8_t vel);
 void dcmotorpwm_gobackward(uint8_t vel);
 

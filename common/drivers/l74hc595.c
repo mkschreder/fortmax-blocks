@@ -43,7 +43,7 @@ void l74hc595_setchipbyte(uint8_t chipindex, uint8_t val) {
 /*
  * set all registers off
  */
-void l74hc595_setregalloff() {
+void l74hc595_setregalloff(void) {
 	for(uint16_t i = 0; i < L74HC595_ICNUMBER*8; i++){
 		l74hc595_setreg(i, 0);
 	}
@@ -52,7 +52,7 @@ void l74hc595_setregalloff() {
 /*
  * set all registers on
  */
-void l74hc595_setregallon() {
+void l74hc595_setregallon(void) {
 	for(uint16_t i = 0; i < L74HC595_ICNUMBER*8; i++){
 		l74hc595_setreg(i, 1);
 	}
@@ -61,7 +61,7 @@ void l74hc595_setregallon() {
 /*
  * init the shift register
  */
-void l74hc595_init() {
+void l74hc595_init(void) {
 	//output
 	L74HC595_DDR |= (1 << L74HC595_SERPIN);
 	L74HC595_DDR |= (1 << L74HC595_RCLKPIN);

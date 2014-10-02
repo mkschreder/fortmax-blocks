@@ -41,7 +41,7 @@ Please refer to LICENSE file for licensing information.
 //FS300A_CONVERSIONSENSITIVITY is the gain to compute the pulse frequency in horizontal test
 #define FS300A_CONVERSIONSENSITIVITY 5.5
 
-extern void fs300a_init();
-extern uint16_t fs300a_getflow();
+extern void fs300a_init(void);
+extern uint16_t fs300a_getflow(void);
 
 #endif

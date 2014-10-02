@@ -58,7 +58,7 @@ Please refer to LICENSE file for licensing information.
 #endif
 
 //functions declarations
-extern void mma7455_init();
+extern void mma7455_init(void);
 extern void mma7455_getdata(double *ax, double *ay, double *az);
 #if MMA7455_GETATTITUDE == 1
 extern void mma7455_getpitchroll(double ax, double ay, double az, double *pitch, double *roll);

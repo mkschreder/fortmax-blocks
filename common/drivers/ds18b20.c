@@ -15,7 +15,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * ds18b20 init
  */
-uint8_t ds18b20_reset() {
+uint8_t ds18b20_reset(void) {
 	uint8_t i;
 
 	//low for 480us
@@ -103,7 +103,7 @@ uint8_t ds18b20_readbyte(void){
 /*
  * get temperature
  */
-double ds18b20_gettemp() {
+double ds18b20_gettemp(void) {
 	uint8_t temperature[2];
 	int8_t digit;
 	uint16_t decimal;

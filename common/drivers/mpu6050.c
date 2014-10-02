@@ -353,7 +353,7 @@ uint8_t mpu6050_writeDMPConfigurationSet(const uint8_t *data, uint16_t dataSize,
 /*
  * get the fifo count
  */
-uint16_t mpu6050_getFIFOCount() {
+uint16_t mpu6050_getFIFOCount(void) {
 	mpu6050_readBytes(MPU6050_RA_FIFO_COUNTH, 2, (uint8_t *)buffer);
     return (((uint16_t)buffer[0]) << 8) | buffer[1];
 }
@@ -368,7 +368,7 @@ void mpu6050_getFIFOBytes(uint8_t *data, uint8_t length) {
 /*
  * get the interrupt status
  */
-uint8_t mpu6050_getIntStatus() {
+uint8_t mpu6050_getIntStatus(void) {
 	mpu6050_readByte(MPU6050_RA_INT_STATUS, (uint8_t *)buffer);
     return buffer[0];
 }
@@ -376,14 +376,14 @@ uint8_t mpu6050_getIntStatus() {
 /*
  * reset fifo
  */
-void mpu6050_resetFIFO() {
+void mpu6050_resetFIFO(void) {
 	mpu6050_writeBit(MPU6050_RA_USER_CTRL, MPU6050_USERCTRL_FIFO_RESET_BIT, 1);
 }
 
 /*
  * get gyro offset X
  */
-int8_t mpu6050_getXGyroOffset() {
+int8_t mpu6050_getXGyroOffset(void) {
 	mpu6050_readBits(MPU6050_RA_XG_OFFS_TC, MPU6050_TC_OFFSET_BIT, MPU6050_TC_OFFSET_LENGTH, (uint8_t *)buffer);
     return buffer[0];
 }
@@ -398,7 +398,7 @@ void mpu6050_setXGyroOffset(int8_t offset) {
 /*
  * get gyro offset Y
  */
-int8_t mpu6050_getYGyroOffset() {
+int8_t mpu6050_getYGyroOffset(void) {
 	mpu6050_readBits(MPU6050_RA_YG_OFFS_TC, MPU6050_TC_OFFSET_BIT, MPU6050_TC_OFFSET_LENGTH, (uint8_t *)buffer);
     return buffer[0];
 }
@@ -413,7 +413,7 @@ void mpu6050_setYGyroOffset(int8_t offset) {
 /*
  * get gyro offset Z
  */
-int8_t mpu6050_getZGyroOffset() {
+int8_t mpu6050_getZGyroOffset(void) {
 	mpu6050_readBits(MPU6050_RA_ZG_OFFS_TC, MPU6050_TC_OFFSET_BIT, MPU6050_TC_OFFSET_LENGTH, (uint8_t *)buffer);
     return buffer[0];
 }
@@ -436,7 +436,7 @@ void mpu6050_setSleepDisabled() {
 /*
  * set sleep enabled
  */
-void mpu6050_setSleepEnabled() {
+void mpu6050_setSleepEnabled(void) {
 	mpu6050_writeBit(MPU6050_RA_PWR_MGMT_1, MPU6050_PWR1_SLEEP_BIT, 1);
 }
 
@@ -444,7 +444,7 @@ void mpu6050_setSleepEnabled() {
 /*
  * test connectino to chip
  */
-uint8_t mpu6050_testConnection() {
+uint8_t mpu6050_testConnection(void) {
 	mpu6050_readBits(MPU6050_RA_WHO_AM_I, MPU6050_WHO_AM_I_BIT, MPU6050_WHO_AM_I_LENGTH, (uint8_t *)buffer);
 	if(buffer[0] == 0x34)
 		return 1;
@@ -455,7 +455,7 @@ uint8_t mpu6050_testConnection() {
 /*
  * initialize the accel and gyro
  */
-void mpu6050_init() {
+void mpu6050_init(void) {
 	//allow mpu6050 chip clocks to start up
 	_delay_ms(100);
 
@@ -602,7 +602,7 @@ void mpu6050_mahonyUpdate(float gx, float gy, float gz, float ax, float ay, floa
 /*
  * update quaternion
  */
-void mpu6050_updateQuaternion() {
+void mpu6050_updateQuaternion(void) {
 	int16_t ax = 0;
 	int16_t ay = 0;
 	int16_t az = 0;

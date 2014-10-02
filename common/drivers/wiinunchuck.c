@@ -42,7 +42,7 @@ volatile int wiinunchuck_avarageangleZ[WIINUNCHUCK_ANGLEAVARAGECOEF];
 /*
  * get joypad X
  */
-int wiinunchuck_getjoyX() {
+int wiinunchuck_getjoyX(void) {
 	#if WIINUNCHUCK_GETNONCALIBRATED == 1
 
 	return (int)wiinunchuck_joyX;
@@ -66,7 +66,7 @@ int wiinunchuck_getjoyX() {
 /*
  * get joypad Y
  */
-int wiinunchuck_getjoyY() {
+int wiinunchuck_getjoyY(void) {
 	#if WIINUNCHUCK_GETNONCALIBRATED == 1
 
 	return (int)wiinunchuck_joyY;
@@ -90,7 +90,7 @@ int wiinunchuck_getjoyY() {
 /*
  * get button Z
  */
-uint8_t wiinunchuck_getbuttonZ() {
+uint8_t wiinunchuck_getbuttonZ(void) {
 	#if WIINUNCHUCK_PULSEBUTTON == 1
 	return (wiinunchuck_buttonZ && !wiinunchuck_lastbuttonZ);
 	#else
@@ -101,7 +101,7 @@ uint8_t wiinunchuck_getbuttonZ() {
 /*
  * get button C
  */
-uint8_t wiinunchuck_getbuttonC() {
+uint8_t wiinunchuck_getbuttonC(void) {
 	#if WIINUNCHUCK_PULSEBUTTON == 1
 	return (wiinunchuck_buttonC && !wiinunchuck_lastbuttonC);
 	#else
@@ -112,7 +112,7 @@ uint8_t wiinunchuck_getbuttonC() {
 /*
  * get angle X
  */
-int wiinunchuck_getangleX() {
+int wiinunchuck_getangleX(void) {
 	#if WIINUNCHUCK_GETNONCALIBRATED == 1
 	return wiinunchuck_angleX;
 	#else
@@ -123,7 +123,7 @@ int wiinunchuck_getangleX() {
 /*
  * get angle Y
  */
-int wiinunchuck_getangleY() {
+int wiinunchuck_getangleY(void) {
 	#if WIINUNCHUCK_GETNONCALIBRATED == 1
 	return wiinunchuck_angleY;
 	#else
@@ -134,7 +134,7 @@ int wiinunchuck_getangleY() {
 /*
  * get angle Z
  */
-int wiinunchuck_getangleZ() {
+int wiinunchuck_getangleZ(void) {
 	return wiinunchuck_angleZ - WIINUNCHUCK_ZEROANGLEZ;
 }
 
@@ -229,7 +229,7 @@ void wiinunchuck_update() {
 /*
  * init wiinunchuck
  */
-void wiinunchuck_init() {
+void wiinunchuck_init(void) {
 	#if WIINUNCHUCK_I2CINIT == 1
 	//init i2c
 	i2c_init();

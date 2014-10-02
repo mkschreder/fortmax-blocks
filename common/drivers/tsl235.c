@@ -28,7 +28,7 @@ TIMER_INTERRUPTfunc {
 /*
  * get frequency, count pulse for TSL235_PULSETIMEMS
  */
-uint32_t tsl235_getfreq() {
+uint32_t tsl235_getfreq(void) {
 	TIMER_START; //start timer
 	_delay_ms(TSL235_COUNTTIMEMS); //delay for TSL235_COUNTTIMEMS
 	TIMER_STOP; //stop timer
@@ -51,6 +51,6 @@ int16_t tsl235_getilluminancebyfreq(uint32_t freq) {
 /*
  * get illuminance (lux=lm/m^2), no parameters
  */
-int16_t tsl235_getilluminance() {
+int16_t tsl235_getilluminance(void) {
 	return tsl235_getilluminancebyfreq(tsl235_getfreq());
 }

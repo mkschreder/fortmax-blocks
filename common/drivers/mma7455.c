@@ -32,7 +32,7 @@ static uint8_t firstread = 1;
 /*
  * initialize the accellerometer
  */
-void mma7455_init() {
+void mma7455_init(void) {
 	#if MMA7455_I2CINIT == 1
 	//init i2c
 	i2c_init();
@@ -63,7 +63,7 @@ void mma7455_getpitchroll(double ax, double ay, double az, double *pitch, double
 /*
  * wait for xyz data to be ready
  */
-void mma7455_waitfordataready() {
+void mma7455_waitfordataready(void) {
 	//wait until data is ready
 	unsigned char status = 0;
 	i2c_start_wait(MMA7455_ADDR | I2C_WRITE);

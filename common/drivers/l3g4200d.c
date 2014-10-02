@@ -31,7 +31,7 @@ double l3g4200d_gtemp = 0; //temperature used for compensation
 /*
  * set reference temperature
  */
-void l3g4200d_settemperatureref() {
+void l3g4200d_settemperatureref(void) {
 	i2c_start(L3G4200D_ADDR | I2C_WRITE);
 	i2c_write(L3G4200D_OUT_TEMP);
 	i2c_rep_start(L3G4200D_ADDR | I2C_READ);
@@ -47,7 +47,7 @@ void l3g4200d_settemperatureref() {
 /*
  * get temperature variation
  */
-int8_t l3g4200d_gettemperaturediff() {
+int8_t l3g4200d_gettemperaturediff(void) {
 	i2c_start(L3G4200D_ADDR | I2C_WRITE);
 	i2c_write(L3G4200D_OUT_TEMP);
 	i2c_rep_start(L3G4200D_ADDR | I2C_READ);
@@ -123,7 +123,7 @@ void l3g4200d_getdata(double* gx, double* gy, double* gz) {
 /*
  * init L3G4200D_
  */
-void l3g4200d_init() {
+void l3g4200d_init(void) {
 	//enable chip
 	i2c_start(L3G4200D_ADDR | I2C_WRITE);
 	i2c_write(L3G4200D_CTRL_REG1);

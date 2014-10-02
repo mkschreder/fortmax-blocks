@@ -21,7 +21,7 @@ Please refer to LICENSE file for licensing information.
 #define PWMCD4017_RSTPORT PORTD
 #define PWMCD4017_RSTPIN PD7 //the reset pin
 
-extern void pwmcd4017_init();
+extern void pwmcd4017_init(void);
 extern void pwmcd4017_set(uint8_t id, uint16_t deg);
 
 //enable or disable high accurancy

@@ -22,7 +22,7 @@ static double hmc5883l_scale = 0;
 /*
  * init the hmc5883l
  */
-void hmc5883l_init() {
+void hmc5883l_init(void) {
 	//set scale
 	hmc5883l_scale = 0;
 	uint8_t regValue = 0x00;

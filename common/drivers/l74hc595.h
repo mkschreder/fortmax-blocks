@@ -29,12 +29,12 @@ Please refer to LICENSE file for licensing information.
 
 uint8_t l74hc595_icarray[L74HC595_ICNUMBER];
 
-extern void l74hc595_init();
-extern void l74hc595_setregallon();
-extern void l74hc595_setregalloff();
+extern void l74hc595_init(void);
+extern void l74hc595_setregallon(void);
+extern void l74hc595_setregalloff(void);
 extern void l74hc595_setreg(uint16_t regindex, uint8_t val);
 extern void l74hc595_setchipbyte(uint8_t chipindex, uint8_t val);
-extern void l74hc595_shiftout();
+extern void l74hc595_shiftout(void);
 
 /*
  * set a register index on

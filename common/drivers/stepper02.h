@@ -115,7 +115,7 @@ typedef struct {
 #define TIMER0_USDELAY 256 //delay us
 
 //functions
-extern void stepper02_init();
+extern void stepper02_init(void);
 extern void stepper02_setsteptime(uint8_t motorid, uint16_t usdelay);
 extern void stepper02_gostop(uint8_t motorid);
 extern void stepper02_goforward(uint8_t motorid, uint16_t steps);

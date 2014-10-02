@@ -26,8 +26,8 @@ Please refer to LICENSE file for licensing information.
 #define BH1750_MODE BH1750_MODEH
 
 //functions
-extern void bh1750_init();
-extern uint16_t bh1750_getlux();
+extern void bh1750_init(void);
+extern uint16_t bh1750_getlux(void);
 
 
 #endif

@@ -35,4 +35,11 @@ enum {
 	E_HCSR_PCINT_NA = -6
 }; 
 
+handle_t hcsr04_open(id_t id);
+int16_t hcsr04_close(handle_t h);
+
+int8_t hcsr04_trigger(handle_t dev, void (*callback)(void* arg), void *arg); 
+int16_t hcsr04_configure(handle_t dev, gpio_pin_t trigger_pin, gpio_pin_t echo_pin);
+uint32_t hcsr04_get_distance(handle_t dev);
+
 DEVICE_DECLARE(hcsr04); 

@@ -60,16 +60,16 @@ Please refer to LICENSE file for licensing information.
 #endif
 
 //functions
-extern void wiinunchuck_calibratejoy();
-extern void wiinunchuck_init();
-extern int wiinunchuck_getjoyX();
-extern int wiinunchuck_getjoyY();
-extern uint8_t wiinunchuck_getbuttonZ();
-extern uint8_t wiinunchuck_getbuttonC();
-extern int wiinunchuck_getangleX();
-extern int wiinunchuck_getangleY();
-extern int wiinunchuck_getangleZ();
-extern void wiinunchuck_update();
+extern void wiinunchuck_calibratejoy(void);
+extern void wiinunchuck_init(void);
+extern int wiinunchuck_getjoyX(void);
+extern int wiinunchuck_getjoyY(void);
+extern uint8_t wiinunchuck_getbuttonZ(void);
+extern uint8_t wiinunchuck_getbuttonC(void);
+extern int wiinunchuck_getangleX(void);
+extern int wiinunchuck_getangleY(void);
+extern int wiinunchuck_getangleZ(void);
+extern void wiinunchuck_update(void);
 #if WIINUNCHUCK_GETATTITUDE == 1
 extern void wiinunchuck_getpitchroll(double ax, double ay, double az, double *pitch, double *roll);
 #endif

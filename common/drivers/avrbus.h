@@ -31,7 +31,7 @@ extern "C" {
 
 uint8_t bus_exchange_byte(uint8_t data);
 
-void bus_master_init(); 
+void bus_master_init(void); 
 void bus_slave_init(uint16_t base_addr, char *buf, uint8_t size);
 uint8_t bus_read(uint16_t addr, char *data, uint8_t size);
 uint8_t bus_write(uint16_t addr, const char *data, uint8_t size);

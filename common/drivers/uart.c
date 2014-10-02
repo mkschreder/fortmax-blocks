@@ -41,6 +41,8 @@ LICENSE:
 #include <avr/pgmspace.h>
 #include "uart.h"
 #include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
 
 #define SIG_USART_RECV USART_RX_vect
 #define SIG_USART_DATA USART_UDRE_vect

@@ -23,7 +23,7 @@ Please refer to LICENSE file for licensing information.
 #define L74HC4051_S1PIN PD3
 #define L74HC4051_S2PIN PD4
 
-extern void l74hc4051_init();
+extern void l74hc4051_init(void);
 extern void l74hc4051_setchannel(uint8_t channel);
 
 #endif

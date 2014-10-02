@@ -35,7 +35,7 @@ uint8_t bldcsensorless_commutationstep = 0;
 /*
  * get speed
  */
-uint16_t bldcsensorless_getspeed() {
+uint16_t bldcsensorless_getspeed(void) {
 	return bldcsensorless_speed;
 }
 
@@ -54,7 +54,7 @@ void bldcsensorless_setspeed(uint16_t speed) {
 /*
  * get direction
  */
-uint8_t bldcsensorless_getdirection() {
+uint8_t bldcsensorless_getdirection(void) {
 	return bldcsensorless_direction;
 }
 
@@ -74,7 +74,7 @@ void bldcsensorless_setdirection(uint8_t direction) {
 /*
  * set stop
  */
-void bldcsensorless_setstop() {
+void bldcsensorless_setstop(void) {
 	if(bldcsensorless_enabled) {
 		cli();
 		BLDCSENSORLESS_RUNS;
@@ -87,7 +87,7 @@ void bldcsensorless_setstop() {
 /*
  * set start
  */
-void bldcsensorless_setstart() {
+void bldcsensorless_setstart(void) {
 	if(!bldcsensorless_enabled) {
 		cli();
 		bldcsensorless_enabled = 1;
@@ -133,7 +133,7 @@ void bldcsensorless_sounder(uint8_t repetitions, uint8_t duration, uint16_t onti
 /*
  * emit the power on sound
  */
-void bldcsensorless_poweronsound() {
+void bldcsensorless_poweronsound(void) {
 	bldcsensorless_sounder(1, 20, 20, 1200);
 	bldcsensorless_sounder(1, 20, 120, 1200);
 	bldcsensorless_sounder(1, 20, 240, 1200);
@@ -143,7 +143,7 @@ void bldcsensorless_poweronsound() {
 /*
  * init bldc ports and variables
  */
-void bldcsensorless_init() {
+void bldcsensorless_init(void) {
 	cli();
 
 	//init fet driver ports
@@ -237,7 +237,7 @@ void bldcsensorless_runstep(uint8_t step) {
 /*
  * startup motor cicle
  */
-void bldcsensorless_startupmotor() {
+void bldcsensorless_startupmotor(void) {
 	uint8_t i = 0;
 	uint8_t j = 0;
 

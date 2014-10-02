@@ -49,7 +49,7 @@ ISR(TIMER0_OVF_vect) {
 /*
  * init fs300a
  */
-void fs300a_init() {
+void fs300a_init(void) {
 	//set timer0
 	TCCR0B = TIMER0_PRESCALER;
 	TIMSK0 = 1<<TOIE0; // enable timer interrupt
@@ -60,7 +60,7 @@ void fs300a_init() {
 /*
  * get fs300a flow (litre\hour)
  */
-uint16_t fs300a_getflow() {
+uint16_t fs300a_getflow(void) {
 	//(Pulse frequency x 60) / FS300A_CONVERSIONSENSITIVITY = flow rate
 	return ((fs300a_flowpulsecount*60)/FS300A_CONVERSIONSENSITIVITY);
 }

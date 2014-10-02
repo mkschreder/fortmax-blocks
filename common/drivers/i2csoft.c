@@ -15,7 +15,7 @@ www.eXtremeElectronics.co.in
 #define Q_DEL _delay_loop_2(3)
 #define H_DEL _delay_loop_2(5)
 
-void SoftI2CInit()
+void SoftI2CInit(void)
 {
 	SDAPORT&=(1<<SDA);
 	SCLPORT&=(1<<SCL);
@@ -24,7 +24,7 @@ void SoftI2CInit()
 	SOFT_I2C_SCL_HIGH;	
 		
 }
-void SoftI2CStart()
+void SoftI2CStart(void)
 {
 	SOFT_I2C_SCL_HIGH;
 	H_DEL;
@@ -33,7 +33,7 @@ void SoftI2CStart()
 	H_DEL;  	
 }
 
-void SoftI2CStop()
+void SoftI2CStop(void)
 {
 	 SOFT_I2C_SDA_LOW;
 	 H_DEL;

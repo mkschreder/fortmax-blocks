@@ -100,12 +100,12 @@ Please refer to LICENSE file for licensing information.
 #endif
 
 //functions
-extern void ledmatrix88_init();
-extern uint8_t ledmatrix88_getcol();
-extern uint8_t ledmatrix88_getrow();
+extern void ledmatrix88_init(void);
+extern uint8_t ledmatrix88_getcol(void);
+extern uint8_t ledmatrix88_getrow(void);
 extern void ledmatrix88_setcol(uint8_t col);
 extern void ledmatrix88_setrow(uint8_t row);
-extern void ledmatrix88_zero();
-extern void ledmatrix88_print();
+extern void ledmatrix88_zero(void);
+extern void ledmatrix88_print(void);
 
 #endif

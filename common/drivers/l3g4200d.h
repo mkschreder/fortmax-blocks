@@ -88,11 +88,11 @@ References:
 #define L3G4200D_INT1_DURATION 0x38
 
 //functions
-extern void l3g4200d_init();
+extern void l3g4200d_init(void);
 extern void l3g4200d_setoffset(double offsetx, double offsety, double offsetz);
 extern void l3g4200d_getrawdata(int16_t *gxraw, int16_t *gyraw, int16_t *gzraw);
 extern void l3g4200d_getdata(double* gx, double* gy, double* gz);
-extern void l3g4200d_settemperatureref();
-extern int8_t l3g4200d_gettemperaturediff();
+extern void l3g4200d_settemperatureref(void);
+extern int8_t l3g4200d_gettemperaturediff(void);
 
 #endif

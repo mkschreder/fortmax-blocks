@@ -1,4 +1,5 @@
 /*! \file i2csw.c \brief Software I2C interface using port pins. */
+#ifdef DO_NOT_INCLUDE
 //*****************************************************************************
 //
 // File Name	: 'i2csw.c'
@@ -101,10 +102,6 @@ u08 i2cGetbyte(UINT last)
 }
 
 
-//************************
-//* I2C public functions *
-//************************
-
 //! Initialize I2C communication
 void i2cInit(void)
 {
@@ -152,3 +149,4 @@ void i2cReceive(u08 device, u08 subAddr, u08 length, u08 *data)
 	I2C_STOP;					// send STOP transition
 }
 */
+#endif

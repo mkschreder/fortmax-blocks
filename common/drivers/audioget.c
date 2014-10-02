@@ -71,7 +71,7 @@ ISR(TIMER1_OVF_vect) {
 /*
  * init ports
  */
-void audioget_init() {
+void audioget_init(void) {
 	//init adc
 	adc_setchannel(AUDIOGET_INPUTCHANNEL);
 	adc_init();
@@ -94,7 +94,7 @@ void audioget_init() {
  * get rms value from audio signal
  * signal must be biased to ADVREF voltage / 2
  */
-int16_t audioget_getrmsval() {
+int16_t audioget_getrmsval(void) {
 	static int16_t retval = 0;
 	int16_t getval = 0;
 

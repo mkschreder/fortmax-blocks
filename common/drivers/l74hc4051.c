@@ -16,7 +16,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * init the shift register
  */
-void l74hc4051_init() {
+void l74hc4051_init(void) {
 	//output
 	L74HC4051_DDR |= (1 << L74HC4051_S0PIN);
 	L74HC4051_DDR |= (1 << L74HC4051_S1PIN);

@@ -86,7 +86,7 @@ bus_t _bus = {
 	.command = 0
 }; 
 
-static void _bus_reset();
+static void _bus_reset(void);
 
 // used by slave
 static volatile char *_slave_buffer;
@@ -98,7 +98,7 @@ static volatile uint16_t _slave_addr = 0;
 //static volatile uint8_t _rx_count = 0; 
 static volatile uint8_t _prev_pinb = 0;
 
-void bus_master_init(){
+void bus_master_init(void){
 	SPI_DDR &= ~((1<<SPI_MISO)); //input
 	SPI_DDR |= (_BV(SPI_MOSI) | _BV(SPI_SS) | _BV(SPI_SCK) | _BV(SPI_CE)); //output
 	// enable pullups
@@ -153,8 +153,8 @@ uint8_t bus_exchange_byte(uint8_t data) {
     return SPDR;
 }
 
-uint16_t ext_get_address(){ return _bus.address; }
-uint16_t ext_state(){ return 0;}
+uint16_t ext_get_address(void){ return _bus.address; }
+uint16_t ext_state(void){ return 0;}
 
 
 
@@ -267,17 +267,17 @@ uint8_t bus_read(uint16_t addr, char *data, uint8_t size){
 }
 
 
-static void _bus_idle_start(){
+static void _bus_idle_start(void){
 	// called when ss goes low
 }
 
-static void _bus_idle_rx_byte(){
+static void _bus_idle_rx_byte(void){
 	_bus.address |= _bus.in_byte;
 	_bus.sum = 0; 
 	_bus.state = BUS_ADDRESS; 
 }
 
-static void _bus_address_rx_byte(){
+static void _bus_address_rx_byte(void){
 	_bus.address |= _bus.in_byte << 8;
 	if((_bus.address >= _slave_addr) &&
 		(_bus.address < (_slave_addr + _slave_buffer_size))){
@@ -289,7 +289,7 @@ static void _bus_address_rx_byte(){
 	}
 }
 
-static void _bus_command_rx_byte(){
+static void _bus_command_rx_byte(void){
 	_bus.command = _bus.in_byte & 0xf0;
 	_bus.command_size = _bus.in_byte & 0x0f;
 	if(_bus.command == EXT_RD)
@@ -302,7 +302,7 @@ static void _bus_command_rx_byte(){
 	_slave_buffer_ptr = 0; 
 }
 
-static void _bus_rx_data(){
+static void _bus_rx_data(void){
 	if(_slave_buffer_ptr < _slave_buffer_size){
 		_slave_buffer[_slave_buffer_ptr++] = _bus.in_byte;
 		_bus.out_byte = _bus.in_byte; // send it back to master for inspection
@@ -311,12 +311,12 @@ static void _bus_rx_data(){
 	}
 }
 
-static void _bus_checksum_rx_byte(){
+static void _bus_checksum_rx_byte(void){
 	_bus.out_byte = _bus.sum;
 	_bus.state = BUS_FINISH;  
 }
 
-static void _bus_tx_data(){
+static void _bus_tx_data(void){
 	if(_slave_buffer_ptr < _slave_buffer_size){
 		_bus.out_byte = _slave_buffer[_slave_buffer_ptr++];
 		_bus.sum += _bus.out_byte;
@@ -333,7 +333,7 @@ static void _bus_tx_data(){
 	
 }
 
-static void _bus_reset(){
+static void _bus_reset(void){
 	_bus.address = 0;
 	_bus.command = 0;
 	_bus.sum = 0; 
@@ -341,13 +341,13 @@ static void _bus_reset(){
 	MISOin; 
 }
 
-static void _bus_nop(){
+static void _bus_nop(void){
 	// does nothing :) 
 }
 
 // Bus state machine state/events callback table
 // start, end, data
-void (*const state_table [BUS_STATE_COUNT][EV_COUNT]) () = {
+void (*const state_table [BUS_STATE_COUNT][EV_COUNT]) (void) = {
 	{ _bus_idle_start, 	_bus_reset, _bus_idle_rx_byte,  }, // idle
 	{ _bus_nop, 				_bus_reset, _bus_address_rx_byte }, // address
 	{ _bus_nop, 				_bus_reset, _bus_command_rx_byte }, // command

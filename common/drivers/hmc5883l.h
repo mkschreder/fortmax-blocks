@@ -64,7 +64,7 @@ References:
 #endif
 
 //functions
-extern void hmc5883l_init();
+extern void hmc5883l_init(void);
 extern void hmc5883l_getrawdata(int16_t *mxraw, int16_t *myraw, int16_t *mzraw);
 extern void hmc5883l_getdata(double *mx, double *my, double *mz);
 

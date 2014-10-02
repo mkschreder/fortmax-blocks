@@ -17,7 +17,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * init a motor
  */
-void dcmotorpwm_init() {
+void dcmotorpwm_init(void) {
 	//set ports
 	DCMOTORPWM_DDR |= (1<<DCMOTORPWM_PIN1);
 	DCMOTORPWM_DDR |= (1<<DCMOTORPWM_PIN2);
@@ -40,7 +40,7 @@ void dcmotorpwm_init() {
 /*
  * stop the motor
  */
-void dcmotorpwm_gostop() {
+void dcmotorpwm_gostop(void) {
 	//set orc
 	OCR1A = 0;
 	OCR1B = 0;

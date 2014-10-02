@@ -35,14 +35,14 @@ volatile uint8_t bldcsensored_debugposerrorprev = 0;
 /*
  * get current spin direction
  */
-uint8_t bldcsensored_getspindirection() {
+uint8_t bldcsensored_getspindirection(void) {
 	return bldcsensored_spindirection;
 }
 
 /*
  * get speed
  */
-uint16_t bldcsensored_getspeed() {
+uint16_t bldcsensored_getspeed(void) {
 	return bldcsensored_speed;
 }
 
@@ -58,7 +58,7 @@ void bldcsensored_setspeed(uint16_t speed) {
 /*
  * get direction
  */
-uint8_t bldcsensored_getdirection() {
+uint8_t bldcsensored_getdirection(void) {
 	return bldcsensored_direction;
 }
 
@@ -76,7 +76,7 @@ void bldcsensored_setdirection(uint8_t direction) {
 /*
  * set stop
  */
-void bldcsensored_setstop() {
+void bldcsensored_setstop(void) {
 	if(bldcsensored_enabled) {
 		cli();
 		BLDCSENSORED_RUNS;
@@ -88,7 +88,7 @@ void bldcsensored_setstop() {
 /*
  * set start
  */
-void bldcsensored_setstart() {
+void bldcsensored_setstart(void) {
 	if(!bldcsensored_enabled) {
 		cli();
 
@@ -132,7 +132,7 @@ void bldcsensored_sounder(uint8_t repetitions, uint8_t duration, uint16_t ontime
 /*
  * emit the power on sound
  */
-void bldcsensored_poweronsound() {
+void bldcsensored_poweronsound(void) {
 	bldcsensored_sounder(1, 20, 20, 1200);
 	bldcsensored_sounder(1, 20, 120, 1200);
 	bldcsensored_sounder(1, 20, 240, 1200);
@@ -141,7 +141,7 @@ void bldcsensored_poweronsound() {
 /*
  * init bldc ports and variables
  */
-void bldcsensored_init() {
+void bldcsensored_init(void) {
 	cli();
 
 	//init hall sensor ports

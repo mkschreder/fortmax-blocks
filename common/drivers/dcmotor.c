@@ -16,7 +16,7 @@ Please refer to LICENSE file for licensing information.
 /*
  * setup motor ports here
  */
-void dcmotor_setup() {
+void dcmotor_setup(void) {
 	uint8_t i = 0;
 
 	//motor 1
@@ -37,7 +37,7 @@ void dcmotor_setup() {
 /*
  * init a motor
  */
-void dcmotor_init() {
+void dcmotor_init(void) {
 	dcmotor_setup();
 
 	//set ports

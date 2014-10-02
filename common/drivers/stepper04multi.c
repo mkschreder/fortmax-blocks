@@ -33,7 +33,7 @@ uint8_t stepper04multi_motortypebipolarfull_lookup[] = STEPPER04MULTI_MOTORTYPEB
 /*
  * setup motor parameters here
  */
-void stepper04multi_setup() {
+void stepper04multi_setup(void) {
 	//setup arrays
 	uint8_t stepper04multi_setuptype[] = {
 			STEPPER04MULTI_MOTOR01_TYPE,
@@ -84,7 +84,7 @@ void stepper04multi_setup() {
 /*
  * init a motor
  */
-void stepper04multi_init() {
+void stepper04multi_init(void) {
 	//setup motors
 	stepper04multi_setup();
 
