@@ -1,10 +1,12 @@
 /*************************************************************************
-* Title:    I2C master library using hardware TWI interface
-* Author:   Peter Fleury <pfleury@gmx.ch>  http://jump.to/fleury
-* File:     $Id: twimaster.c,v 1.3 2005/07/02 11:14:21 Peter Exp $
-* Software: AVR-GCC 3.4.3 / avr-libc 1.2.3
-* Target:   any AVR device with hardware TWI 
-* Usage:    API compatible with I2C Software Library i2cmaster.h
+* Asynchronous I/O I2C library (based on the old i2cmaster and a few others.
+* The library is interrupt based and uses the async framework for running
+* callbacks from within the main loop. use this with async.c found in the
+* same folder!
+*
+* Authod: Martin K. Schröder
+* Website: http://oskit.se
+* Email: info@fortmax.se
 **************************************************************************/
 #include <inttypes.h>
 #include <compat/twi.h>
@@ -15,13 +17,6 @@
 
 /* I2C clock in Hz */
 #define SCL_CLOCK  10000L
-// twi_master.c  
-// R. Traylor
-// 11.07.2011
-//******
-// I2C async master code
-// Implements asynchronous i2c master that does not block
-//******
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
