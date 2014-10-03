@@ -80,14 +80,6 @@ ISR(TWI_vect){
         TWDR = dev->cmd.buf[dev->_buf_ptr++];  //load next and postincrement index
         TWCR = TWCR_SEND;               //send next byte 
       }
-      /*else {
-				//last byte sent and not a read operation, send STOP 
-				TWCR = TWCR_STOP;
-				if(dev->callback) {
-					// trigger callback to run in the main loop 
-					async_schedule(dev->callback, dev->arg, 0);
-				}
-			}*/
       else {
 				if(dev->cmd.rcount == 0){
 					//there is no read op pending so send stop 
@@ -97,13 +89,6 @@ ISR(TWI_vect){
 				}
 				_i2c_write_done = 1; 
 			}
-			/*else {
-				// skip - start sent by next op
-				if(dev->callback) {
-					// trigger callback to run in the main loop 
-					async_schedule(dev->callback, dev->arg, 0);
-				}
-			}  */
       break;
     case TW_MR_DATA_ACK:
 			//Data byte has been rcvd, ACK xmitted, fall through
@@ -209,14 +194,6 @@ CONSTRUCTOR(i2c_init){
 }
 
 handle_t i2c_open(id_t id){
-	//if(!dev_open(gpio, 0)) return FAIL;
-	
-	//dev_ioctl(gpio, 0, IOC_GPIO_LOCK_PIN, GPIO_PC4);
-	//dev_ioctl(gpio, 0, IOC_GPIO_LOCK_PIN, GPIO_PC5);
-	
-  //TWSR = 0;                         
-  //TWBR = (uint8_t)(((F_CPU/SCL_CLOCK)-16)/2);  
-
 	return &_devices[0];
 }
 
