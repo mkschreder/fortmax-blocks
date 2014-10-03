@@ -4,7 +4,6 @@
 struct kernel_export_data kdata;
 static handle_t hcsr1, hcsr2;
 static handle_t adc, timer1, i2c, gpio; 
-static timeout_t timeout;
 
 void _hcsr1_complete(void *arg){
 	kdata.distance[0] = hcsr04_get_distance(hcsr1); 
@@ -77,9 +76,7 @@ handle_t kernel_open(id_t id){
 		kdata.last_error = "NO I2C"; 
 		return INVALID_HANDLE; 
 	}
-
-	timeout = timeout_from_now(timer1, 10000UL);
-
+	
 	return DEFAULT_HANDLE; 
 }
 

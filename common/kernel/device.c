@@ -35,6 +35,7 @@ void driver_register(struct driver *drv){
 void driver_tick(void){
 	if(!_drv_list) return;
 	for(struct driver *i = _drv_list; i != 0; i = i->next){
+		//uart_printf("asdf"); 
 		if(i->tick != 0) i->tick(); 
 	}
 }

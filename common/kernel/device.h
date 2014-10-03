@@ -54,5 +54,6 @@ extern void driver_register(struct driver *drv);
 #define CONSTRUCTOR(name) void __attribute__((constructor)) name(void)
 
 enum device_errors {
-	EBUSY = -100
+	EBUSY = -100,
+	EINVAL = -99
 }; 

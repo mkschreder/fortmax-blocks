@@ -12,7 +12,7 @@ static struct async_op _pool[POOL_SIZE];
 
 static handle_t timer1 = 0;
 
-int8_t async_begin(struct async_op *op){
+static int8_t async_begin(struct async_op *op){
 	op->flags.busy = 1;
 	op->flags.cb_called = 0;
 	return SUCCESS; 
@@ -24,7 +24,7 @@ struct async_op *__async_schedule(async_callback_t cb, timeout_t time){
 	
 	struct async_op *op = list_first_entry(&_empty, struct async_op, list);
 	
-	printf("Scheduling task %s\n", op->name);
+	//printf("Scheduling task %s\n", op->name);
 	
 	list_del_init(&op->list);
 	list_add_tail(&op->list, &_to_schedule);
@@ -53,6 +53,7 @@ void __async_done(struct async_op *op, uint8_t success){
 int8_t async_wait(
 	async_callback_t success, async_callback_t fail,
 	void *arg, volatile uint8_t *flag, timeout_t timeout){
+	if(!success) return FAIL; 
 	struct async_op *op = __async_schedule(success, timeout);
 	op->failed = fail;
 	op->wait_on = flag;
@@ -61,6 +62,7 @@ int8_t async_wait(
 }
 
 int8_t async_schedule(async_callback_t cb, void *arg, timeout_t time){
+	if(!cb) return FAIL; 
 	struct async_op *op = __async_schedule(cb, time);
 	op->arg = arg; 
 	if(op) return SUCCESS;
@@ -68,7 +70,7 @@ int8_t async_schedule(async_callback_t cb, void *arg, timeout_t time){
 }
 
 static void async_tick(void){
-	//printf("TICK!\n");
+	//uart_printf("TICK!\n");
 	struct list_head *i, *n;
 	
 	list_for_each_safe(i, n, &_to_schedule){
@@ -101,7 +103,7 @@ CONSTRUCTOR(async_init){
 	
 	static struct driver drv = {
 		.name = "async",
-		.tick = async_tick,
+		.tick = &async_tick,
 		.init = 0
 	};
 	

@@ -21,35 +21,37 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <drivers/uart.h>
 
 #include <kernel/kernel.h>
+#include <kernel/l3g4200d.h>
 
 #include <string.h>
 
-struct task_list {
-	struct task_list *next;
-	void (*func)(long arg);
-	long arg;
-	uint8_t sync; 
-};
+void _start_measure(void *ptr); 
+void _gyro_read_completed(void *ptr){
+	handle_t dev = ptr;
+	int16_t gx = 0, gy = 0, gz = 0; 
+	l3g4200d_readraw(dev, &gx, &gy, &gz);
+	uart_printf("GYRO: %d %d %d\n", gx, gy, gz);
+	async_schedule(_start_measure, dev, 0); 
+}
 
-typedef struct task_list task_t;
+void _start_measure(void *ptr){
+	uart_printf("START\n"); 
+	handle_t dev = (handle_t)ptr;
+	l3g4200d_getdata(dev, _gyro_read_completed, dev);
+}
 
-task_t task[10];
-
-#define OP(_func, _arg, _next) (task_t){.next = _next, .func = _func, .arg = _arg}; 
-
-void _read_byte(long arg){
-
+void _heartbeat(void *ptr){
+	uart_printf("X"); 
+	async_schedule(_heartbeat, 0, 100000UL);
 }
 
 int main(void){
-	task[0] = OP(_read_byte, 0, &task[1]);
-	
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
-	
-	handle_t kern = kernel_open(0);
 
 	__asm("sei"); 
+
+	handle_t kern = kernel_open(0);
 
 	uart_printf("...\n");
 
@@ -60,22 +62,35 @@ int main(void){
 		while(1);
 	}
 
-	uart_puts("\e[H\e[2J");
-	
-	while(1){
-		uart_puts("\e[H\e[?25l");
-		uart_printf("KVARS: \n"); 
-		struct kvar *vars = kvar_get_all();
+	//uart_puts("\e[H\e[2J");
 
-		uart_printf("Decl: %d %d     \n", (uint16_t)kdata.distance[0], (uint16_t)kdata.distance[1]);
+	uart_printf("Gyro init..\n");
+	
+	handle_t l3g = l3g4200d_open(0);
+
+	if(!l3g){
+		uart_printf("NO GYRO!\n");
+		while(1);
+	}
+	
+	l3g4200d_configure(l3g, _start_measure, 0, l3g); 
+
+	async_schedule(_heartbeat, 0, 100000UL); 
+
+	while(1){
+		//uart_puts("\e[H\e[?25l");
+		//uart_printf("KVARS: \n"); 
+		//struct kvar *vars = kvar_get_all();
+
+		//uart_printf("Decl: %d %d     \n", (uint16_t)kdata.distance[0], (uint16_t)kdata.distance[1]);
 		timeout_t time = timer_get_clock(0); 
-		uart_printf("TIME: %04x%04x\n", (uint16_t)(time >> 16), (uint16_t)time); 
-		if(vars){
+		//uart_printf("TIME: %04x%04x\n", (uint16_t)(time >> 16), (uint16_t)time); 
+		/*if(vars){
 			list_for_each(i, &vars->list) {
 				struct kvar *ent = list_entry(i, struct kvar, list); 
 				uart_printf("%02x %s\n", (uint8_t)(ent->id), ent->name);
 			}
-		}
+		}*/
 
 		/*uart_puts("\e[H\e[?25l"); 
 		uart_printf("D: %08d %08d, err: %s\n",
