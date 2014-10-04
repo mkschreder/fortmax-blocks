@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <kernel/kernel.h>
 #include <kernel/l3g4200d.h>
+#include <kernel/ssd1306.h>
+#include <kernel/timer.h>
 
 #include <string.h>
 
@@ -45,6 +47,32 @@ void _heartbeat(void *ptr){
 	async_schedule(_heartbeat, 0, 100000UL);
 }
 
+void _init_completed(void *ptr); 
+void _reinit_display(void *ptr){
+	ssd1306_init(ptr, _init_completed, ptr);
+}
+
+void _data_sent(void *ptr){
+	uart_puts("datadone\n");
+}
+
+void _init_completed(void *ptr){
+	uart_puts("initdone\n");
+	static uint8_t buffer[64];
+	uint8_t j = 0; 
+	for(int i = 0; i < sizeof(buffer); i++){
+		buffer[i] = (uint8_t)(1 << j);
+		j++; if(j >= 8) j = 0; 
+	}
+	j = 0;
+	for(int i = sizeof(buffer)-1; i >= 0; i--){
+		buffer[i] |= (uint8_t)(1 << j);
+		j++; if(j >= 8) j = 0; 
+	}
+	// loop for ever
+	ssd1306_putraw(ptr, buffer, sizeof(buffer), _init_completed, ptr); 
+}
+
 int main(void){
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
@@ -65,18 +93,22 @@ int main(void){
 	//uart_puts("\e[H\e[2J");
 
 	uart_printf("Gyro init..\n");
-	
+
+	/*
 	handle_t l3g = l3g4200d_open(0);
 
 	if(!l3g){
 		uart_printf("NO GYRO!\n");
 		while(1);
 	}
+	*/
+	//l3g4200d_configure(l3g, _start_measure, 0, l3g); 
+
+	//async_schedule(_heartbeat, 0, 100000UL); 
 	
-	l3g4200d_configure(l3g, _start_measure, 0, l3g); 
-
-	async_schedule(_heartbeat, 0, 100000UL); 
-
+	handle_t disp = ssd1306_open(0);
+	ssd1306_init(disp, _init_completed, disp);
+	
 	while(1){
 		//uart_puts("\e[H\e[?25l");
 		//uart_printf("KVARS: \n"); 

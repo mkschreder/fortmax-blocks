@@ -149,7 +149,8 @@ void _block_iterate(void *ptr){
 	uint8_t last = block->ptr >= (block->size - block->stride); 
 	if(block->iterator && !block->flags.iterator_called){
 		block->flags.iterator_called = 1;
-		block->iterator(block,
+		block->iterator(
+			block,
 			block->data + block->ptr,
 			last,
 			block->iterator_arg,
@@ -196,10 +197,10 @@ int8_t async_schedule_each(uint8_t *array, uint8_t stride, uint8_t size, async_i
 }
 
 void async_stats(void){
-	printf("Memory/task: %d\n", sizeof(async_task_t));
-	printf("Total: %d\n", sizeof(async_task_t) * 2 + sizeof(_pool));
-	printf("Free: %d\n", sem_value(&_semaphore));
-	printf("Active: %d\n", POOL_SIZE - sem_value(&_semaphore)); 
+	uart_printf("Memory/task: %d\n", sizeof(async_task_t));
+	uart_printf("Total: %d\n", sizeof(async_task_t) * 2 + sizeof(_pool));
+	uart_printf("Free: %d\n", sem_value(&_semaphore));
+	uart_printf("Active: %d\n", POOL_SIZE - sem_value(&_semaphore)); 
 }
 
 CONSTRUCTOR(async_init){

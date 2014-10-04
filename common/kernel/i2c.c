@@ -119,7 +119,7 @@ uint8_t twi_busy(void){
 }
 
 static void __i2c_write(struct i2c_device *dev){
-	uart_puts("i2write\n"); 
+	//uart_puts("i2write\n"); 
 
   _i2c_write_done = 0; 
 	dev->cmd.addr = (dev->cmd.addr & ~TW_READ); 
@@ -142,7 +142,7 @@ static void __i2c_read(struct i2c_device *dev){
 }
 
 static void __i2c_completed(void *ptr){
-	uart_puts("i2done!\n");
+	//uart_puts("i2done!\n");
 	
 	struct i2c_device *dev = (struct i2c_device*)ptr;
 	dev->busy = 0; 
