@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include <kernel/types.h>
 
 struct list_head {
 	struct list_head *prev, *next;

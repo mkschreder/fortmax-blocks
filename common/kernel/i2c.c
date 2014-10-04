@@ -11,9 +11,9 @@
 #include <inttypes.h>
 #include <compat/twi.h>
 
-#include "device.h"
-#include "i2c.h"
-#include "gpio.h"
+#include <kernel/device.h>
+#include <kernel/i2c.h>
+#include <kernel/gpio.h>
 
 /* I2C clock in Hz */
 #define SCL_CLOCK  10000L
@@ -24,7 +24,7 @@
 #include <util/twi.h>
 #include <stdlib.h>
 
-#include "i2c.h"
+#include <kernel/i2c.h>
 
 #define I2C_TIMEOUT 100000L
 

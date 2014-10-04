@@ -11,15 +11,15 @@
 // external device support
 #define CONFIG_HCSR04 Y
 
-#include "object.h"
-#include "async.h"
-#include "kvar.h"
-#include "device.h"
-#include "adc.h"
-#include "timer.h"
-#include "gpio.h"
-#include "hcsr04.h"
-#include "i2c.h"
+#include <kernel/object.h>
+#include <kernel/async.h>
+#include <kernel/kvar.h>
+#include <kernel/device.h>
+#include <kernel/adc.h>
+#include <kernel/timer.h>
+#include <kernel/gpio.h>
+#include <kernel/hcsr04.h>
+#include <kernel/i2c.h>
 
 // data structures for supported kernel functions
 struct kernel_export_data {

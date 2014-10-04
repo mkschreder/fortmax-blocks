@@ -1,5 +1,5 @@
-#include "kernel.h"
-#include "kvar.h"
+#include <kernel/kernel.h>
+#include <kernel/kvar.h>
 
 struct kernel_export_data kdata;
 static handle_t hcsr1, hcsr2;

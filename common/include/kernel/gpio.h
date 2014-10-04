@@ -1,7 +1,7 @@
 #pragma once
 
-#include "device.h"
-#include "timer.h"
+#include <kernel/device.h>
+#include <kernel/timer.h>
 
 
 typedef enum gpio_pin {

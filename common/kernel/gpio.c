@@ -2,9 +2,9 @@
 #include <avr/interrupt.h>
 #include <string.h>
 
-#include "device.h"
-#include "gpio.h"
-#include "timer.h"
+#include <kernel/device.h>
+#include <kernel/gpio.h>
+#include <kernel/timer.h>
 
 static uint8_t _locked_pins[GPIO_COUNT / 8];
 static struct pcint_info _pcint_table[GPIO_COUNT];

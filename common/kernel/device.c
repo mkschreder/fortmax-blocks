@@ -1,4 +1,4 @@
-#include "device.h"
+#include <kernel/device.h>
 #include <string.h>
 
 struct driver *_drv_list = 0; 

@@ -1,4 +1,5 @@
-#include "timer.h"
+#include <kernel/timer.h>
+
 /*
 #if __STDC_VERSION__ >= 199901L
 #define _XOPEN_SOURCE 600
@@ -46,8 +47,8 @@ uint32_t timer_clock_to_us(handle_t h, timeout_t ticks){
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "device.h"
-#include "timer.h"
+#include <kernel/device.h>
+#include <kernel/timer.h>
 
 /// this holds the number of overflows of timer 1 (which counts clock ticks)
 static volatile uint32_t _timer1_ovf = 0;

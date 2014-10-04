@@ -1,7 +1,7 @@
 #pragma once
 
-#include "device.h"
-#include "async.h"
+#include <kernel/device.h>
+#include <kernel/async.h>
 
 typedef struct i2c_command {
 	uint8_t addr;	// i2c device address

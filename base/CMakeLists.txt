@@ -11,7 +11,7 @@ set(TARGET firmware.elf)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
-include_directories("../include/avr/" "../include/avr/c++/" "../common")
+include_directories("../include/avr/" "../include/avr/c++/" "../common/" "../common/include")
 link_directories("./")
 
 file(GLOB Project_SOURCES kernel/*.c *.c)

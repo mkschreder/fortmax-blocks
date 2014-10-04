@@ -1,11 +1,11 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "device.h"
-#include "adc.h"
-#include "gpio.h"
-#include "kvar.h"
-#include "async.h"
+#include <kernel/device.h>
+#include <kernel/adc.h>
+#include <kernel/gpio.h>
+#include <kernel/kvar.h>
+#include <kernel/async.h>
 
 static uint8_t _in_use = 0; 
 static volatile uint16_t _adc = 0;

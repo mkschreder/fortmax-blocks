@@ -3,12 +3,10 @@
 
 #include <string.h>
 
-#include "kernel.h"
-#include "device.h"
-#include "hcsr04.h"
-#include "gpio.h"
-#include "timer.h"
-#include "kvar.h"
+#include <kernel/device.h>
+#include <kernel/hcsr04.h>
+#include <kernel/gpio.h>
+#include <kernel/timer.h>
 
 typedef struct hcsr04 {
 	int8_t trig;

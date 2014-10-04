@@ -11,11 +11,11 @@ set(TARGET drivers)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
-include_directories("../include/avr/" "./drivers")
+include_directories("../include/avr/" "./drivers" "./include")
 
 file(GLOB Project_SOURCES drivers/*.c kernel/*.c)
 #file(GLOB Project_SOURCES test/hello.c)
-file(GLOB Project_HEADER drivers/*.h kernel/*.c)
+file(GLOB Project_HEADER drivers/*.h kernel/*.h include/kernel/*.h)
 
 set (CMAKE_C_COMPILER "/usr/bin/avr-gcc") 
 set (CMAKE_C_FLAGS "-Wall -Wstrict-prototypes -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -ffunction-sections -std=c99 -fdata-sections -O2 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")

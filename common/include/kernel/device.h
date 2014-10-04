@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include <kernel/types.h>
 
 #define DEVICE_DECLARE(driver)
 /*\

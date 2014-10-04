@@ -1,7 +1,7 @@
 #pragma once
 
 /** Macros that one should use to correctly deal with timeouts **/
-#include "types.h"
+#include <kernel/types.h>
 
 #define IOC_TIMER_GET_TICKS 1
 #define IOC_TIMER_GET_PRESCALER 2

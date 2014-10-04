@@ -13,10 +13,10 @@ Please refer to LICENSE file for licensing information.
 #include <avr/io.h>
 #include <util/delay.h>
 
-#include "i2c.h"
+#include <kernel/i2c.h>
 
-#include "l3g4200d.h"
-#include "l3g4200d_priv.h"
+#include <kernel/l3g4200d.h>
+#include <kernel/l3g4200d_priv.h>
 
 enum {
 	STATE_IDLE,
@@ -68,12 +68,12 @@ int8_t l3g4200d_temperatureref = 0;
 double l3g4200d_gtemp = 0; //temperature used for compensation
 #endif
 
-void _tempref_get_completed(void *ptr){
+static void _tempref_get_completed(void *ptr){
 	struct l3g4200d *dev = (struct l3g4200d*)ptr;
 	dev->tempdiff = l3g4200d_temperatureref - (int8_t)dev->buffer[0]; 
 }
 
-int8_t l3g4200d_gettemperaturediff(handle_t ptr) {
+static int8_t l3g4200d_gettemperaturediff(handle_t ptr) {
 	struct l3g4200d *dev = (struct l3g4200d*)ptr;
 	dev->buffer[0] = L3G4200D_OUT_TEMP; 
 	dev->command = (i2c_command_t){
@@ -88,7 +88,7 @@ int8_t l3g4200d_gettemperaturediff(handle_t ptr) {
 	return SUCCESS; 
 }
 
-void l3g4200d_setoffset(double offsetx, double offsety, double offsetz) {
+static void l3g4200d_setoffset(double offsetx, double offsety, double offsetz) {
 	l3g4200d_offsetx = offsetx;
 	l3g4200d_offsety = offsety;
 	l3g4200d_offsetz = offsetz;
@@ -162,7 +162,7 @@ int8_t l3g4200d_readraw(handle_t handle, int16_t *gx, int16_t *gy, int16_t *gz){
 	return SUCCESS; 
 }
 
-void _tempref_set_complete(void *ptr){
+static void _tempref_set_complete(void *ptr){
 	struct l3g4200d *dev = (struct l3g4200d*)ptr;
 	uint8_t rawtemp = dev->buffer[0]; 
 	l3g4200d_temperatureref = (int8_t)rawtemp;
@@ -179,7 +179,7 @@ void _tempref_set_complete(void *ptr){
 	}
 }
 
-int8_t __l3g4200d_init_set_tempref(handle_t handle) {
+static int8_t __l3g4200d_init_set_tempref(handle_t handle) {
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	//if(dev->flags.busy) return EBUSY;
 	uart_puts("set_temp\n");
@@ -213,7 +213,7 @@ static void __init_set_range(void *ptr){
 	});
 }
 
-void __l3g4200d_init(struct l3g4200d *dev){
+static void __l3g4200d_init(struct l3g4200d *dev){
 	uart_puts("init\n"); 
 	// fireoff the init sequence
 	dev->buffer[0] = L3G4200D_CTRL_REG1;

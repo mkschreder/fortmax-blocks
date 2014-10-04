@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gpio.h"
+#include <kernel/gpio.h>
 
 struct hcsr04_config {
 	uint8_t mode; 

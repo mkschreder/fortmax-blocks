@@ -1,8 +1,9 @@
-#include "device.h"
-#include "kvar.h"
-#include "list.h"
-#include "object.h"
-#include "string.h"
+#include <kernel/device.h>
+#include <kernel/kvar.h>
+#include <kernel/list.h>
+#include <kernel/object.h>
+
+#include <string.h>
 
 static LIST_HEAD(_kvar_list);
 static uint16_t _kvar_id = 0;

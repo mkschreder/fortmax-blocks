@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object.h"
+#include <kernel/object.h>
 
 #define IOC_ADC_SET_CHANNEL 1
 #define IOC_ADC_SET_PRECISION 2

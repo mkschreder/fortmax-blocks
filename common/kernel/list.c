@@ -1,8 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "device.h"
-#include "list.h"
+#include <kernel/device.h>
+#include <kernel/list.h>
 /*
 int8_t list_push(struct list_head **list, struct list_head *i){
 	if(i->sync) return FAIL; 

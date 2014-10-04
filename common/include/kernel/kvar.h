@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object.h"
-#include "list.h"
+#include <kernel/object.h>
+#include <kernel/list.h>
 #include <stdint.h>
 #include <stddef.h>
 
