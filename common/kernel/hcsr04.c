@@ -98,7 +98,7 @@ static void interrupt(pcint_config_t *conf){
 	hcsr04_t *hc = (hcsr04_t*)conf->arg;
 	if(!hc) return;
 	
-	if(conf->leading)
+	if(conf->flags.leading)
 		state_table[hc->state][EV_ECHO_UP](hc);
 	else {
 		hc->echo_down_time = conf->time; 

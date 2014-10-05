@@ -29,9 +29,9 @@ static inline void _pcint(uint8_t cur, uint8_t changed, uint8_t base){
 	while(changed){
 		if((changed & 1) && _pcint_table[base + bit].flags.enabled){
 			 pcint_config_t *conf = &_pcint_table[base + bit];
-			 conf->leading = cur & _BV(bit); 
+			 conf->flags.leading = cur & _BV(bit); 
 			 conf->time = timer_get_clock(timer1); 
-			 if(conf->handler) conf->handler(conf); 
+			 if(conf->handler) conf->handler(conf, conf->arg); 
 		}
 		changed >>= 1; 
 		bit++;
@@ -79,7 +79,7 @@ int8_t gpio_configure(handle_t dev, gpio_pin_t pin, gpio_flags_t flags){
 	return SUCCESS; 
 }
 
-int8_t gpio_enable_pcint(handle_t dev, gpio_pin_t pin, void (*handler)(struct pcint_info *info), void *arg){
+int8_t gpio_enable_pcint(handle_t dev, gpio_pin_t pin, void (*handler)(struct pcint_info *info, void *arg), void *arg){
 	pcint_config_t *conf = &_pcint_table[pin];
 	
 	if(pin > GPIO_COUNT || pin < 0) return FAIL;

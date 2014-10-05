@@ -125,19 +125,17 @@ static void __i2c_write(struct i2c_device *dev){
 	dev->cmd.addr = (dev->cmd.addr & ~TW_READ); 
 	dev->_rw_count = dev->cmd.wcount;
 	dev->_buf_ptr = 0; 
-	//dev->callback = dev->cmd.callback;
-	//dev->arg = dev->cmd.arg;
-	
+
 	TWCR = TWCR_START;                    //initiate START
 }
 
 static void __i2c_read(struct i2c_device *dev){
-  _i2c_read_done = 0; 
+  _i2c_read_done = 0;
+  
 	dev->cmd.addr = (dev->cmd.addr | TW_READ); //set twi bus address, mark as write 
 	dev->_rw_count = dev->cmd.rcount;              //load size of xfer
 	dev->_buf_ptr = 0;
-	//dev->callback = dev->cmd.callback;
-	//dev->arg = dev->cmd.arg; 
+	
 	TWCR = TWCR_START;                    //initiate START
 }
 

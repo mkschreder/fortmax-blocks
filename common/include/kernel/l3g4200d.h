@@ -2,9 +2,10 @@
 
 //definitions
 void l3g4200d_init(void);
-handle_t l3g4200d_open(id_t id); 
-int8_t l3g4200d_getdata(handle_t handle, async_callback_t callback, void *arg);
-int8_t l3g4200d_readraw(handle_t handle, int16_t *gx, int16_t *gy, int16_t *gz);
+handle_t l3g4200d_open(id_t id);
+void l3g4200d_getdata(handle_t handle, double *gx, double *gy, double *gz); 
+int8_t l3g4200d_readdata(handle_t handle, async_callback_t callback, void *arg);
+int8_t l3g4200d_getraw(handle_t handle, int16_t *gx, int16_t *gy, int16_t *gz);
 
 //functions
 //extern void l3g4200d_init(void);

@@ -10,7 +10,29 @@ struct async_op;
 typedef void (*async_callback_t)(void *arg) ;
 typedef void (*async_iterator_t)(void *block, uint8_t *it, uint8_t last, void *arg,
 		void (*next)(void *block));
-		
+
+typedef struct async_process {
+	struct {
+		uint8_t sleeping : 1;
+		uint8_t scheduled : 1;
+		uint8_t completed : 1;
+	} flags;
+
+	timeout_t sleep_timeout;
+
+	void (*start)(handle_t *proc);
+	void (*done)(handle_t *proc);
+	void (*signal)(handle_t *proc, uint16_t sig, long data); 
+	void (*failed)(handle_t *proc, const char *err);
+	
+	struct list_head list; 
+} async_process_t;
+
+struct myprocess {
+	uint8_t mybuffer; 
+	struct async_process process;
+};
+
 typedef struct async_task {
 	async_callback_t 	completed;
 	void 							*completed_arg;

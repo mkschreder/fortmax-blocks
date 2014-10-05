@@ -50,12 +50,12 @@ enum gpio_ioc {
 };
 */
 typedef struct pcint_info {
-	void (*handler)(struct pcint_info *conf);
+	void (*handler)(struct pcint_info *conf, void *arg);
 	timeout_t time;
 	uint8_t pin;
-	uint8_t leading;
 	struct {
 		uint8_t enabled : 1;
+		uint8_t leading : 1;
 	} flags; 
 	void *arg;
 } pcint_config_t;
@@ -69,7 +69,7 @@ handle_t gpio_open(id_t id);
 int16_t gpio_close(handle_t dev);
 
 int8_t gpio_configure(handle_t dev, gpio_pin_t pin, gpio_flags_t flags); 
-int8_t gpio_enable_pcint(handle_t dev, gpio_pin_t pin, void (*handler)(struct pcint_info *info), void *arg);
+int8_t gpio_enable_pcint(handle_t dev, gpio_pin_t pin, void (*handler)(struct pcint_info *info, void *arg), void *arg);
 int8_t gpio_set(handle_t dev, gpio_pin_t pin, uint8_t value);
 int8_t gpio_get(handle_t dev, gpio_pin_t pin);
 int8_t gpio_register(handle_t dev, gpio_pin_t pin);

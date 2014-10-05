@@ -39,7 +39,7 @@ void _gyro_read_completed(void *ptr){
 void _start_measure(void *ptr){
 	uart_printf("START\n"); 
 	handle_t dev = (handle_t)ptr;
-	l3g4200d_getdata(dev, _gyro_read_completed, dev);
+	l3g4200d_readdata(dev, _gyro_read_completed, dev);
 }
 
 void _heartbeat(void *ptr){
@@ -66,7 +66,7 @@ void _init_completed(void *ptr){
 	}
 	j = 0;
 	for(int i = sizeof(buffer)-1; i >= 0; i--){
-		buffer[i] |= (uint8_t)(1 << j);
+		buffer[i] |= (uint8_t)(7 << j);
 		j++; if(j >= 8) j = 0; 
 	}
 	// loop for ever
