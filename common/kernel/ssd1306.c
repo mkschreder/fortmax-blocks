@@ -25,6 +25,22 @@
 #define U8G_ESC_RST(x) 255, (0xc0 | ((x)&0x0f))
 #define U8G_ESC_END 255, 254
 
+struct ssd1306_request {
+	struct {
+		uint8_t command : 1;
+		uint8_t text : 1;
+		uint8_t pgmem : 1; 
+	} flags; 
+	uint8_t *data;
+	uint8_t ptr; 
+	uint8_t size;
+};
+
+// types of requests:
+// init: one long command request
+// scroll: one small command request
+// data: one command, then data request
+// text: 
 typedef struct ssd1306_device {
 	struct {
 		uint8_t in_use : 1; 
@@ -43,11 +59,16 @@ typedef struct ssd1306_device {
 	uint8_t _data[64];
 	uint8_t _data_size;
 
+	struct ssd1306_request request[4];
+	uint8_t request_ptr;
+	uint8_t request_size;
+	
 	uint16_t addr;  // byte address in the display ram
 } ssd1306_device_t;
 
 static ssd1306_device_t _device[1];
 static handle_t i2c = 0;
+static const unsigned char font[];
 
 void ssd1306_get_glyph(uint8_t ch, char *glyph); 
 
@@ -153,16 +174,96 @@ static void _fill_display_data(void *arg){
 	__push_data(arg, dev->_data, dev->_data_size, dev->__callback, dev->__arg);
 }
 
-/// Write raw buffer into the desplay. 
-int8_t ssd1306_putraw(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
-	struct ssd1306_device *dev = (ssd1306_device_t*)handle;
-/*
-	process_t *init = ssd1306_command_process();
-	process_t *data = ssd1306_data_process();
+static void __process(void *arg) {
+	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
+	struct ssd1306_request *req = &dev->request[dev->request_ptr];
 	
-	process_chain(init, data);
-	*/
+	static uint8_t buffer[2];
+
+	buffer[0] = (req->flags.command)?0x00:0x40;
+	if(req->flags.pgmem)
+		buffer[1] = pgm_read_byte(&req->data[req->ptr]);
+	else if(req->flags.text){
+		uint8_t ch = req->data[req->ptr >> 3];
+		uint8_t col = (req->ptr & 0x07); 
+		const unsigned char *data = &font[ch * 5 + col];
+		//req->ptr++;
+		if(col >= 5){
+			req->ptr &= ~0x07;
+			req->ptr += 8;
+		}
+		buffer[1] = pgm_read_byte(data); 
+	} else
+		buffer[1] = req->data[req->ptr];
+
+	req->ptr++;
+	if(req->ptr >= req->size){
+		dev->request_ptr++;
+		if(dev->request_ptr >= dev->request_size){
+			dev->flags.busy = 0;
+			async_schedule(dev->callback, dev->arg, 0);
+			return; 
+		}
+	}
+	
+	// send the i2c command to the i2c driver and have it call
+	// supplied callback when the transfer is completed
+	i2c_transfer(i2c, (i2c_command_t){
+		.addr = DISPLAY_ADDRESS,
+		.buf = buffer,
+		.wcount = 2,
+		.rcount = 0,
+		.callback = __process,
+		.arg = dev
+	});
+}
+
+/// Write raw buffer into the desplay. 
+int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
+	struct ssd1306_device *dev = (ssd1306_device_t*)handle;
+
+	static uint8_t buffer[] = {
+		U8G_ESC_ADR(0),           // instruction mode 
+		U8G_ESC_CS(1),             // enable chip 
+		0x000, //| (col & 0x0f),		// set lower 4 bit of the col adr to 0 
+		0x010, // | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
+		0x0b0, // | (dev->addr >> 7) & 0x0f,  	// page address
+		U8G_ESC_END,                // end of sequence 
+	};
+
+	memcpy(dev->_data, data, size);
+	
+	dev->request[0] = (struct ssd1306_request){
+		.data = buffer,
+		.flags.text = 0, 
+		.flags.command = 1,
+		.flags.pgmem = 0, 
+		.ptr = 0,
+		.size = sizeof(buffer)
+	}; 
+	dev->request[1] = (struct ssd1306_request){
+		.data = dev->_data,
+		.flags.text = 1, 
+		.flags.command = 0,
+		.flags.pgmem = 0, 
+		.ptr = 0,
+		.size = size * 5
+	}; 
+	
+	dev->request_ptr = 0;
+	dev->request_size = 2;
+	
+	dev->callback = callback;
+	dev->arg = ptr;
+	
+	__process(dev);
+	
 	// copy the data into the internal buffer
+}
+
+int8_t ssd1306_putraw(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
+	ssd1306_device_t *dev = (ssd1306_device_t*)handle;
+	
 	memcpy(dev->_data, data, size);
 	dev->_data_size = size;
 	
@@ -172,12 +273,12 @@ int8_t ssd1306_putraw(handle_t handle, const uint8_t *data, uint8_t size, async_
 	uint8_t col = dev->addr & 0x7f;
 	
 	uint8_t buffer[] = {
-		U8G_ESC_ADR(0),           /* instruction mode */
-		U8G_ESC_CS(1),             /* enable chip */
+		U8G_ESC_ADR(0),           // instruction mode 
+		U8G_ESC_CS(1),             // enable chip 
 		0x000 | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
 		0x010 | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
 		0x0b0 | (dev->addr >> 7) & 0x0f,  	// page address
-		U8G_ESC_END,                /* end of sequence */
+		U8G_ESC_END,                // end of sequence 
 	};
 	
 	dev->addr += dev->_data_size;

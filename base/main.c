@@ -56,21 +56,34 @@ void _data_sent(void *ptr){
 	uart_puts("datadone\n");
 }
 
-void _init_completed(void *ptr){
+void _send_string(void *ptr){
+	static const char *data = "Hello World!"; 
+	ssd1306_putstring(ptr, data, strlen(data), _data_sent, ptr); 
+}
+void _clear_display(void *ptr){
 	uart_puts("initdone\n");
 	static uint8_t buffer[64];
+	static const uint8_t total = 2 * 8;
+	static int8_t iteration = 0;
+	if(iteration = -1) iteration = 0; 
 	uint8_t j = 0; 
 	for(int i = 0; i < sizeof(buffer); i++){
-		buffer[i] = (uint8_t)(1 << j);
+		buffer[i] = 0; //(uint8_t)(1 << j);
 		j++; if(j >= 8) j = 0; 
 	}
 	j = 0;
 	for(int i = sizeof(buffer)-1; i >= 0; i--){
-		buffer[i] |= (uint8_t)(7 << j);
+		buffer[i] = 0; //|= (uint8_t)(7 << j);
 		j++; if(j >= 8) j = 0; 
 	}
-	// loop for ever
-	ssd1306_putraw(ptr, buffer, sizeof(buffer), _init_completed, ptr); 
+	iteration ++;
+	if(iteration == total) {
+		iteration = -1;
+		async_schedule(_send_string, ptr, 0);
+		return;
+	} else {
+		ssd1306_putraw(ptr, buffer, sizeof(buffer), _clear_display, ptr);
+	} 
 }
 
 int main(void){
@@ -107,7 +120,7 @@ int main(void){
 	//async_schedule(_heartbeat, 0, 100000UL); 
 	
 	handle_t disp = ssd1306_open(0);
-	ssd1306_init(disp, _init_completed, disp);
+	ssd1306_init(disp, _clear_display, disp);
 	
 	while(1){
 		//uart_puts("\e[H\e[?25l");
