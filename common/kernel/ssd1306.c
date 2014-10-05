@@ -30,10 +30,11 @@ struct ssd1306_request {
 		uint8_t command : 1;
 		uint8_t text : 1;
 		uint8_t pgmem : 1; 
-	} flags; 
+	} flags;
+	//uint8_t addr; 
 	uint8_t *data;
-	uint8_t ptr; 
-	uint8_t size;
+	uint16_t ptr; 
+	uint16_t size;
 };
 
 // types of requests:
@@ -55,7 +56,7 @@ typedef struct ssd1306_device {
 	async_callback_t __callback;
 	void *__arg;
 	
-	uint8_t _commands[40]; // command buffer
+	uint8_t _commands[32]; // command buffer
 	uint8_t _data[64];
 	uint8_t _data_size;
 
@@ -87,116 +88,43 @@ int8_t ssd1306_init(handle_t dev, async_callback_t callback, void *ptr){
 	return SUCCESS; 
 }
 
-/// asynchronously sends one command to the display
-static void __each_command(void *block, uint8_t *it, uint8_t last, void *arg, void (*callback)(void *block)) {
-	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
-
-	static uint8_t buffer[2];
-
-	buffer[0] = 0x00;
-	buffer[1] = (*it);
-
-	// send the i2c command to the i2c driver and have it call
-	// supplied callback when the transfer is completed
-	i2c_command_t cmd = {
-		.addr = DISPLAY_ADDRESS,
-		.buf = buffer,
-		.wcount = 2,
-		.rcount = 0,
-		.callback = callback,
-		.arg = block
-	}; 
-	i2c_transfer(i2c, cmd);
-
-	// if it is the last byte then call user callback 
-	if(last){
-		dev->flags.busy = 0;
-		// schedule callback for async execution on next tick
-		async_schedule(dev->callback, dev->arg, 0); 
-	}
-	// Aruduino equivalent (blocking)
-	//uint8_t control = 0x00;   // Co = 0, D/C = 0
-	//Wire.beginTransmission(_i2caddr);
-	//Wire.write(control);
-	//Wire.write(c);
-	//Wire.endTransmission();
-}
-
-/// executes a series of commands using async foreach loop
-/// one command per main loop tick. 
-static void __run_commands(handle_t arg, uint8_t *buffer, uint8_t size, async_callback_t callback, void *cbarg){
-	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
-	
-	memcpy(dev->_commands, buffer, size);
-	dev->callback = callback;
-	dev->arg = cbarg;
-	
-	async_schedule_each(dev->_commands, 1, size, __each_command, dev); 
-}
-
-static void __each_data(void *block, uint8_t *it, uint8_t last, void *arg, void (*callback)(void *block)){
-	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
-	
-	static uint8_t buffer[2];
-	buffer[0] = 0x40;
-	buffer[1] = (*it); 
-	i2c_transfer(i2c, (i2c_command_t){
-		.addr = DISPLAY_ADDRESS,
-		.buf = buffer,
-		.wcount = 2,
-		.rcount = 0,
-		.callback = callback,
-		.arg = block
-	});
-	if(last){
-		dev->flags.busy = 0;
-
-		// data is always preceded by command sequence to set address
-		// so the user callback is placed in __ pointers and ordinary
-		// pointers are used for internal callbacks. 
-		async_schedule(dev->__callback, dev->__arg, 0); 
-	}
-}
-
-static void __push_data(handle_t arg, uint8_t *buffer, uint8_t size, async_callback_t callback, void *ptr){
-	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
-	
-	memcpy(dev->_commands, buffer, size);
-	dev->callback = callback;
-	dev->arg = arg;
-	
-	async_schedule_each(dev->_commands, 1, size, __each_data, dev); 
-}
-
-static void _fill_display_data(void *arg){
-	struct ssd1306_device *dev = (ssd1306_device_t*)arg;
-	
-	__push_data(arg, dev->_data, dev->_data_size, dev->__callback, dev->__arg);
-}
-
 static void __process(void *arg) {
 	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
 	struct ssd1306_request *req = &dev->request[dev->request_ptr];
 	
 	static uint8_t buffer[2];
 
-	buffer[0] = (req->flags.command)?0x00:0x40;
-	if(req->flags.pgmem)
+	if(req->flags.command)
+		buffer[0] = 0x00;
+	else {
+		buffer[0] = 0x40;
+		dev->addr++;
+	}
+	if(req->flags.pgmem){
 		buffer[1] = pgm_read_byte(&req->data[req->ptr]);
+		req->ptr++;
+	}
 	else if(req->flags.text){
-		uint8_t ch = req->data[req->ptr >> 3];
-		uint8_t col = (req->ptr & 0x07); 
-		const unsigned char *data = &font[ch * 5 + col];
-		//req->ptr++;
-		if(col >= 5){
-			req->ptr &= ~0x07;
-			req->ptr += 8;
+		//uint16_t col = (dev->addr & 0x1ff);
+		
+		if((req->ptr & 0x07) > 5){
+			req->ptr &= ~0x07; // next char;
+			req->ptr += 8; 
 		}
-		buffer[1] = pgm_read_byte(data); 
-	} else
+		uint8_t ch = req->data[req->ptr >> 3];
+		uint8_t col = (req->ptr & 0x07);
+		req->ptr++;
+		
+		if(col < 5) // next four cols are just font stuff
+			buffer[1] = pgm_read_byte(&font[ch * 5 + (col)]);
+		else if(col == 5) // last one is letter separator
+			buffer[1] = 0;
+			
+	} else {
 		buffer[1] = req->data[req->ptr];
+		req->ptr++;
+	}
 
-	req->ptr++;
 	if(req->ptr >= req->size){
 		dev->request_ptr++;
 		if(dev->request_ptr >= dev->request_size){
@@ -222,19 +150,24 @@ static void __process(void *arg) {
 int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
 	struct ssd1306_device *dev = (ssd1306_device_t*)handle;
 
-	static uint8_t buffer[] = {
+	//if((dev->addr & 0x7f) > 126) dev->addr += 2; 
+	uint8_t col = dev->addr & 0x7f; // low 7 bits
+	uint8_t row = (dev->addr >> 7) & 0xff;
+	
+	uint8_t buffer[] = {
 		U8G_ESC_ADR(0),           // instruction mode 
 		U8G_ESC_CS(1),             // enable chip 
-		0x000, //| (col & 0x0f),		// set lower 4 bit of the col adr to 0 
-		0x010, // | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
-		0x0b0, // | (dev->addr >> 7) & 0x0f,  	// page address
+		0x000 | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
+		0x010 | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
+		0x0b0 | row & 0x0f,  	// page address
 		U8G_ESC_END,                // end of sequence 
 	};
 
+	memcpy(dev->_commands, buffer, sizeof(buffer)); 
 	memcpy(dev->_data, data, size);
 	
 	dev->request[0] = (struct ssd1306_request){
-		.data = buffer,
+		.data = dev->_commands,
 		.flags.text = 0, 
 		.flags.command = 1,
 		.flags.pgmem = 0, 
@@ -247,7 +180,7 @@ int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, asy
 		.flags.command = 0,
 		.flags.pgmem = 0, 
 		.ptr = 0,
-		.size = size * 5
+		.size = size * 8
 	}; 
 	
 	dev->request_ptr = 0;
@@ -255,6 +188,8 @@ int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, asy
 	
 	dev->callback = callback;
 	dev->arg = ptr;
+
+	//dev->addr = 0;
 	
 	__process(dev);
 	
@@ -263,72 +198,105 @@ int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, asy
 
 int8_t ssd1306_putraw(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
 	ssd1306_device_t *dev = (ssd1306_device_t*)handle;
-	
-	memcpy(dev->_data, data, size);
-	dev->_data_size = size;
-	
-	dev->__callback = callback;
-	dev->__arg = ptr;
 
 	uint8_t col = dev->addr & 0x7f;
-	
+	uint8_t row = (dev->addr >> 7) & 0x0f; 
+		
 	uint8_t buffer[] = {
 		U8G_ESC_ADR(0),           // instruction mode 
 		U8G_ESC_CS(1),             // enable chip 
 		0x000 | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
 		0x010 | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
-		0x0b0 | (dev->addr >> 7) & 0x0f,  	// page address
+		0x0b0 | row,  	// page address
 		U8G_ESC_END,                // end of sequence 
 	};
+
+	memcpy(dev->_commands, buffer, sizeof(buffer)); 
+	memcpy(dev->_data, data, size);
 	
-	dev->addr += dev->_data_size;
-
-	__run_commands(handle, buffer, sizeof(buffer), _fill_display_data, handle); 
-}
-
-void _each_letter(void *block, uint8_t *it, uint8_t last, void *arg, void (*callback)(void *block)){
-	struct ssd1306_device *dev = (ssd1306_device_t*)arg;
-
-
-}
-
-void ssd1306_drawText(handle_t h, uint8_t *str, async_callback_t callback, void *ptr){
+	dev->request[0] = (struct ssd1306_request){
+		.data = dev->_commands,
+		.flags.text = 0, 
+		.flags.command = 1,
+		.flags.pgmem = 0, 
+		.ptr = 0,
+		.size = sizeof(buffer)
+	}; 
+	dev->request[1] = (struct ssd1306_request){
+		.data = dev->_data,
+		.flags.text = 0, 
+		.flags.command = 0,
+		.flags.pgmem = 0,
+		.ptr = 0,
+		.size = size
+	}; 
 	
-	async_schedule_each(str, 1, strlen(str), _each_letter, h); 
+	dev->request_ptr = 0;
+	dev->request_size = 2;
+	
+	dev->callback = callback;
+	dev->arg = ptr;
+
+	//dev->addr = 0; 
+	__process(dev);
 }
+
+void ssd1306_seek(handle_t h, uint16_t addr){
+	struct ssd1306_device* dev = (struct ssd1306_device*)h;
+	dev->addr = addr;
+}
+
+static const uint8_t init_sequence[] PROGMEM = {
+	U8G_ESC_CS(0),             //disable chip
+	U8G_ESC_ADR(0),           /* instruction mode */
+	U8G_ESC_RST(1),           /* do reset low pulse with (1*16)+2 milliseconds */
+	U8G_ESC_CS(1),             /* enable chip */
+	
+	0x0ae,				/* display off, sleep mode */
+	0x0d5, 0x081,		/* clock divide ratio (0x00=1) and oscillator frequency (0x8) */
+	0x0a8, 0x03f,		/* multiplex ratio */
+	0x0d3, 0x000,	0x00,	/* display offset */
+	//0x040,				/* start line */
+	0x08d, 0x014,		/* charge pump setting (p62): 0x014 enable, 0x010 disable */
+	0x20, 0x00, // memory addr mode
+	0x0a1,				/* segment remap a0/a1*/
+	0xa5, // display on
+	0x0c8,				/* c0: scan dir normal, c8: reverse */
+	0x0da, 0x012,		/* com pin HW config, sequential com pin config (bit 4), disable left/right remap (bit 5) */
+	0x081, 0x09f,		/* set contrast control */
+	0x0d9, 0x011,		/* pre-charge period */
+	0x0db, 0x020,		/* vcomh deselect level */
+	//0x022, 0x000,		/* page addressing mode WRONG: 3 byte cmd! */
+	0x0a4,				/* output ram to display */
+	0x0a6,				/* none inverted normal display mode */
+	0x0af,				/* display on */
+
+	//U8G_ESC_CS(0),             /* disable chip */
+	U8G_ESC_END                /* end of sequence */
+};
+
 /// executes the display init sequence that powers on the display
-static void __init_display(handle_t dev, async_callback_t callback, void *arg) {
-	uint8_t buffer[] = {
-		U8G_ESC_CS(0),             /* disable chip */
-		U8G_ESC_ADR(0),           /* instruction mode */
-		U8G_ESC_RST(1),           /* do reset low pulse with (1*16)+2 milliseconds */
-		U8G_ESC_CS(1),             /* enable chip */
-		
-		0x0ae,				/* display off, sleep mode */
-		0x0d5, 0x081,		/* clock divide ratio (0x00=1) and oscillator frequency (0x8) */
-		0x0a8, 0x03f,		/* multiplex ratio */
-		0x0d3, 0x000,	0x00,	/* display offset */
-		//0x040,				/* start line */
-		0x08d, 0x014,		/* charge pump setting (p62): 0x014 enable, 0x010 disable */
-		0x20, 0x00, // memory addr mode
-		0x0a1,				/* segment remap a0/a1*/
-		0xa5, // display on
-		0x0c8,				/* c0: scan dir normal, c8: reverse */
-		0x0da, 0x012,		/* com pin HW config, sequential com pin config (bit 4), disable left/right remap (bit 5) */
-		0x081, 0x09f,		/* set contrast control */
-		0x0d9, 0x011,		/* pre-charge period */
-		0x0db, 0x020,		/* vcomh deselect level */
-		//0x022, 0x000,		/* page addressing mode WRONG: 3 byte cmd! */
-		0x0a4,				/* output ram to display */
-		0x0a6,				/* none inverted normal display mode */
-		0x0af,				/* display on */
-  
-		//U8G_ESC_CS(0),             /* disable chip */
-		U8G_ESC_END                /* end of sequence */
-		
+static void __init_display(handle_t h, async_callback_t callback, void *ptr) {
+	struct ssd1306_device *dev = (struct ssd1306_device*)h;
+	
+	dev->request[0] = (struct ssd1306_request){
+		.data = init_sequence,
+		.flags.text = 0, 
+		.flags.command = 1,
+		.flags.pgmem = 1, 
+		.ptr = 0,
+		.size = sizeof(init_sequence)
 	};
 	
-	__run_commands(dev, buffer, sizeof(buffer), callback, arg); 
+	dev->request_ptr = 0;
+	dev->request_size = 1;
+	
+	dev->callback = callback;
+	dev->arg = ptr;
+
+	dev->addr = 0;
+	
+	__process(dev); 
 }
 
 

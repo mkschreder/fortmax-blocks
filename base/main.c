@@ -57,28 +57,49 @@ void _data_sent(void *ptr){
 }
 
 void _send_string(void *ptr){
-	static const char *data = "Hello World!"; 
-	ssd1306_putstring(ptr, data, strlen(data), _data_sent, ptr); 
+	/*static const char data[128] =
+		"This is an 128x64 monochrome OLE"
+		"D display. And now I'm using a g"
+		"raphical font as well! The displ"
+		"ay can do up to 8 lines of text!";*/
+	static const char data[] =
+		"Hello World! Now we have a worki"
+		"ng OLED display driver for the S"
+		"SSD1306 display controller. It's"
+		" all async and runs on bg! Enjoy"
+		"! 2014 Martin K. Schroder. info@"
+		"fortmax.se"; 
+	static uint8_t idx = 0;
+	uint16_t len = strlen(data); 
+	if(idx >= len)
+		async_schedule(_data_sent, ptr, 0);
+	else {
+		uint8_t size = 64;
+		if((len - idx) < 64) size = len - idx; 
+		ssd1306_putstring(ptr, data + idx, size, _send_string, ptr);
+	}
+	idx += 64;
 }
 void _clear_display(void *ptr){
-	uart_puts("initdone\n");
+	uart_puts("clear 1/2 page\n");
 	static uint8_t buffer[64];
-	static const uint8_t total = 2 * 8;
+	static const uint8_t total = 16 + 1;
 	static int8_t iteration = 0;
-	if(iteration = -1) iteration = 0; 
+	if(iteration == -1) iteration = 0; 
 	uint8_t j = 0; 
 	for(int i = 0; i < sizeof(buffer); i++){
-		buffer[i] = 0; //(uint8_t)(1 << j);
+		buffer[i] = 0x0; //(uint8_t)(1 << j);
 		j++; if(j >= 8) j = 0; 
 	}
 	j = 0;
 	for(int i = sizeof(buffer)-1; i >= 0; i--){
-		buffer[i] = 0; //|= (uint8_t)(7 << j);
+		buffer[i] = 0x0; //|= (uint8_t)(7 << j);
 		j++; if(j >= 8) j = 0; 
 	}
 	iteration ++;
-	if(iteration == total) {
+	if(iteration >= total) {
 		iteration = -1;
+		ssd1306_seek(ptr, 0); 
 		async_schedule(_send_string, ptr, 0);
 		return;
 	} else {
