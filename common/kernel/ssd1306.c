@@ -7,7 +7,13 @@
  * Website: http://oskit.se
  */
 
+#ifdef __AVR__
+#include <avr/io.h>
 #include <avr/pgmspace.h>
+#else
+#define PROGMEM
+#endif
+
 #include <stdlib.h>
 
 #include <kernel/device.h>
@@ -25,6 +31,9 @@
 #define U8G_ESC_RST(x) 255, (0xc0 | ((x)&0x0f))
 #define U8G_ESC_END 255, 254
 
+#define TEXT_W (21)
+#define TEXT_H (8)
+
 struct ssd1306_request {
 	struct {
 		uint8_t command : 1;
@@ -33,6 +42,7 @@ struct ssd1306_request {
 	} flags;
 	//uint8_t addr; 
 	uint8_t *data;
+	uint8_t current_char; // cache for current char being rendered
 	uint16_t ptr; 
 	uint16_t size;
 };
@@ -46,46 +56,101 @@ typedef struct ssd1306_device {
 	struct {
 		uint8_t in_use : 1; 
 		uint8_t busy : 1;
+		uint8_t need_sync : 1; 
 	} flags;
 
+	uint8_t text[TEXT_W * TEXT_H];
+	
 	// user callback
 	async_callback_t callback;
 	void *arg;
 
-	// callbacks used for internal ops
-	async_callback_t __callback;
-	void *__arg;
-	
 	uint8_t _commands[32]; // command buffer
-	uint8_t _data[64];
-	uint8_t _data_size;
 
-	struct ssd1306_request request[4];
+	struct ssd1306_request request[2];
 	uint8_t request_ptr;
 	uint8_t request_size;
 	
-	uint16_t addr;  // byte address in the display ram
 } ssd1306_device_t;
 
 static ssd1306_device_t _device[1];
 static handle_t i2c = 0;
 static const unsigned char font[];
 
-void ssd1306_get_glyph(uint8_t ch, char *glyph); 
-
 static void __init_display(handle_t dev, async_callback_t cb, void *arg);
+static void __process(void *arg);
+static void __sync_display(void *ptr);
+
+static void __sync_display_done(void *ptr){
+	struct ssd1306_device *dev = (ssd1306_device_t*)ptr;
+	dev->flags.need_sync = 0;
+	async_schedule(__sync_display, dev, 0); 
+}
+
+static void __sync_display(void *ptr){
+	struct ssd1306_device *dev = (ssd1306_device_t*)ptr;
+
+	uint8_t buffer[] = {
+		U8G_ESC_ADR(0),           // instruction mode 
+		U8G_ESC_CS(1),             // enable chip 
+		0x000, // | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
+		0x010, // | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
+		0x0b0, // | row & 0x0f,  	// page address
+		U8G_ESC_END,                // end of sequence 
+	};
+
+	memcpy(dev->_commands, buffer, sizeof(buffer)); 
+
+	// sending text is a two stage process
+	// first we must send command to reset the address to 0
+	// then we must send data
+	dev->request[0] = (struct ssd1306_request){
+		.data = dev->_commands,
+		.flags.text = 0, 
+		.flags.command = 1,
+		.flags.pgmem = 0, 
+		.ptr = 0,
+		.size = sizeof(buffer)
+	}; 
+	dev->request[1] = (struct ssd1306_request){
+		.data = dev->text,
+		.current_char = dev->text[0], 
+		.flags.text = 1, 
+		.flags.command = 0,
+		.flags.pgmem = 0, 
+		.ptr = 0,
+		.size = sizeof(dev->text) * 8
+	}; 
+	
+	dev->request_ptr = 0;
+	dev->request_size = 2;
+
+	// loop on sync display
+	dev->callback = __sync_display_done;
+	dev->arg = ptr;
+
+	__process(dev);
+}
+
+void __clear_display(void *ptr){
+	struct ssd1306_device *dev = (struct ssd1306_device*)ptr;
+	
+	for(int c = 0; c < sizeof(dev->text); c++){
+		dev->text[c] = ' ';
+	}
+
+	__sync_display(ptr); 
+}
 
 handle_t ssd1306_open(id_t id){
 	ssd1306_device_t *dev = &_device[0];
 	if(dev->flags.in_use) return INVALID_HANDLE;
 	dev->flags.in_use = 1;
 	dev->flags.busy = 0;
+	
+	__init_display(dev, __clear_display, dev);
+	
 	return dev;
-}
-
-int8_t ssd1306_init(handle_t dev, async_callback_t callback, void *ptr){
-	__init_display(dev, callback, ptr);
-	return SUCCESS; 
 }
 
 static void __process(void *arg) {
@@ -98,7 +163,7 @@ static void __process(void *arg) {
 		buffer[0] = 0x00;
 	else {
 		buffer[0] = 0x40;
-		dev->addr++;
+		//dev->addr++;
 	}
 	if(req->flags.pgmem){
 		buffer[1] = pgm_read_byte(&req->data[req->ptr]);
@@ -106,20 +171,30 @@ static void __process(void *arg) {
 	}
 	else if(req->flags.text){
 		//uint16_t col = (dev->addr & 0x1ff);
-		
-		if((req->ptr & 0x07) > 5){
-			req->ptr &= ~0x07; // next char;
-			req->ptr += 8; 
-		}
-		uint8_t ch = req->data[req->ptr >> 3];
-		uint8_t col = (req->ptr & 0x07);
-		req->ptr++;
-		
-		if(col < 5) // next four cols are just font stuff
-			buffer[1] = pgm_read_byte(&font[ch * 5 + (col)]);
-		else if(col == 5) // last one is letter separator
-			buffer[1] = 0;
+		static uint16_t x = 0;
+		if(req->ptr == 0) x = 1;
+		else x++;
+
+		if((x % 128) > 125){
+			buffer[1] = 0x0;
+		} else {
+			if(req->ptr == 0) 
+				req->current_char = req->data[0];
+				
+			if((req->ptr & 0x07) > 5){
+				req->ptr &= ~0x07; // next char;
+				req->ptr += 8; 
+				req->current_char = req->data[req->ptr >> 3]; 
+			}
+			uint8_t ch = req->current_char;
+			uint8_t col = (req->ptr & 0x07);
+			req->ptr++;
 			
+			if(col < 5) // next four cols are just font stuff
+				buffer[1] = pgm_read_byte(&font[ch * 5 + (col)]);
+			else if(col == 5) // last one is letter separator
+				buffer[1] = 0;
+		}
 	} else {
 		buffer[1] = req->data[req->ptr];
 		req->ptr++;
@@ -144,106 +219,6 @@ static void __process(void *arg) {
 		.callback = __process,
 		.arg = dev
 	});
-}
-
-/// Write raw buffer into the desplay. 
-int8_t ssd1306_putstring(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
-	struct ssd1306_device *dev = (ssd1306_device_t*)handle;
-
-	//if((dev->addr & 0x7f) > 126) dev->addr += 2; 
-	uint8_t col = dev->addr & 0x7f; // low 7 bits
-	uint8_t row = (dev->addr >> 7) & 0xff;
-	
-	uint8_t buffer[] = {
-		U8G_ESC_ADR(0),           // instruction mode 
-		U8G_ESC_CS(1),             // enable chip 
-		0x000 | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
-		0x010 | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
-		0x0b0 | row & 0x0f,  	// page address
-		U8G_ESC_END,                // end of sequence 
-	};
-
-	memcpy(dev->_commands, buffer, sizeof(buffer)); 
-	memcpy(dev->_data, data, size);
-	
-	dev->request[0] = (struct ssd1306_request){
-		.data = dev->_commands,
-		.flags.text = 0, 
-		.flags.command = 1,
-		.flags.pgmem = 0, 
-		.ptr = 0,
-		.size = sizeof(buffer)
-	}; 
-	dev->request[1] = (struct ssd1306_request){
-		.data = dev->_data,
-		.flags.text = 1, 
-		.flags.command = 0,
-		.flags.pgmem = 0, 
-		.ptr = 0,
-		.size = size * 8
-	}; 
-	
-	dev->request_ptr = 0;
-	dev->request_size = 2;
-	
-	dev->callback = callback;
-	dev->arg = ptr;
-
-	//dev->addr = 0;
-	
-	__process(dev);
-	
-	// copy the data into the internal buffer
-}
-
-int8_t ssd1306_putraw(handle_t handle, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr){
-	ssd1306_device_t *dev = (ssd1306_device_t*)handle;
-
-	uint8_t col = dev->addr & 0x7f;
-	uint8_t row = (dev->addr >> 7) & 0x0f; 
-		
-	uint8_t buffer[] = {
-		U8G_ESC_ADR(0),           // instruction mode 
-		U8G_ESC_CS(1),             // enable chip 
-		0x000 | (col & 0x0f),		// set lower 4 bit of the col adr to 0 
-		0x010 | ((col >> 4) & 0x0f),		// set higher 4 bit of the col adr to 0 
-		0x0b0 | row,  	// page address
-		U8G_ESC_END,                // end of sequence 
-	};
-
-	memcpy(dev->_commands, buffer, sizeof(buffer)); 
-	memcpy(dev->_data, data, size);
-	
-	dev->request[0] = (struct ssd1306_request){
-		.data = dev->_commands,
-		.flags.text = 0, 
-		.flags.command = 1,
-		.flags.pgmem = 0, 
-		.ptr = 0,
-		.size = sizeof(buffer)
-	}; 
-	dev->request[1] = (struct ssd1306_request){
-		.data = dev->_data,
-		.flags.text = 0, 
-		.flags.command = 0,
-		.flags.pgmem = 0,
-		.ptr = 0,
-		.size = size
-	}; 
-	
-	dev->request_ptr = 0;
-	dev->request_size = 2;
-	
-	dev->callback = callback;
-	dev->arg = ptr;
-
-	//dev->addr = 0; 
-	__process(dev);
-}
-
-void ssd1306_seek(handle_t h, uint16_t addr){
-	struct ssd1306_device* dev = (struct ssd1306_device*)h;
-	dev->addr = addr;
 }
 
 static const uint8_t init_sequence[] PROGMEM = {
@@ -294,173 +269,44 @@ static void __init_display(handle_t h, async_callback_t callback, void *ptr) {
 	dev->callback = callback;
 	dev->arg = ptr;
 
-	dev->addr = 0;
+	//dev->addr = 0;
 	
 	__process(dev); 
 }
 
+int16_t ssd1306_xy_puts(handle_t h,
+	uint8_t x, uint8_t y, const char *str){
+	struct ssd1306_device *dev = (struct ssd1306_device*)h;
 
-void ssd1306_invertDisplay(handle_t dev, uint8_t i) {
-	uint8_t command[1]; 
-  if (i) {
-    command[0] = SSD1306_INVERTDISPLAY;
-  } else {
-    command[0] = SSD1306_NORMALDISPLAY;
-  }
-  __run_commands(dev, command, 1, 0, 0); 
+	uint8_t start = y * TEXT_W + x; 
+	strncpy(dev->text + start, str, sizeof(dev->text) - start);
+
+	dev->flags.need_sync = 1; 
+	return 1; 
 }
 
+int16_t ssd1306_xy_printf(handle_t h, uint8_t x, uint8_t y, const char *fmt, ...){
+	uint16_t n; 
+	va_list vl; 
+	va_start(vl, fmt);
+	struct ssd1306_device *dev = (struct ssd1306_device*)h;
+	uint8_t start = y * TEXT_W + x;
+	
+	n = vsnprintf(dev->text + start, sizeof(dev->text)-start, fmt, vl);
+	
+	va_end(vl);
 
-// startscrollright
-// Activate a right handed scroll for rows start through stop
-// Hint, the display is 16 rows tall. To scroll the whole display, run:
-// display.scrollright(0x00, 0x0F)
-void ssd1306_startscrollright(handle_t dev, uint8_t start, uint8_t stop){
-	uint8_t buffer[] = {
-			SSD1306_RIGHT_HORIZONTAL_SCROLL,
-			0x00, start, 0x00, stop, 0x01, 0xff,
-			SSD1306_ACTIVATE_SCROLL
-	};
-	__run_commands(dev, buffer, sizeof(buffer), 0, 0); 
-	/*
-	ssd1306_command(SSD1306_RIGHT_HORIZONTAL_SCROLL);
-	ssd1306_command(0X00);
-	ssd1306_command(start);
-	ssd1306_command(0X00);
-	ssd1306_command(stop);
-	ssd1306_command(0X01);
-	ssd1306_command(0XFF);
-	ssd1306_command(SSD1306_ACTIVATE_SCROLL);*/
+	dev->flags.need_sync = 1; 
+	return n; 
 }
 
-// startscrollleft
-// Activate a right handed scroll for rows start through stop
-// Hint, the display is 16 rows tall. To scroll the whole display, run:
-// display.scrollright(0x00, 0x0F)
-void ssd1306_startscrollleft(handle_t dev, uint8_t start, uint8_t stop){
-	uint8_t buffer[] = {
-			SSD1306_RIGHT_HORIZONTAL_SCROLL,
-			0x00,
-			start,
-			0x00,
-			stop,
-			0x01,
-			0xff,
-			SSD1306_ACTIVATE_SCROLL
-	};
-	__run_commands(dev, buffer, sizeof(buffer), 0, 0); 
-	/*ssd1306_command(SSD1306_LEFT_HORIZONTAL_SCROLL);
-	ssd1306_command(0X00);
-	ssd1306_command(start);
-	ssd1306_command(0X00);
-	ssd1306_command(stop);
-	ssd1306_command(0X01);
-	ssd1306_command(0XFF);
-	ssd1306_command(SSD1306_ACTIVATE_SCROLL);*/
+void ssd1306_reset(handle_t h){
+	__clear_display(h);
 }
-
-// startscrolldiagright
-// Activate a diagonal scroll for rows start through stop
-// Hint, the display is 16 rows tall. To scroll the whole display, run:
-// display.scrollright(0x00, 0x0F)
-void ssd1306_startscrolldiagright(handle_t dev, uint8_t start, uint8_t stop){
-	uint8_t buffer[] = {
-			SSD1306_SET_VERTICAL_SCROLL_AREA,
-			0x00,
-			SSD1306_LCDHEIGHT,
-			SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL,
-			0x0,
-			start,
-			0x00,
-			stop,
-			0x01,
-			SSD1306_ACTIVATE_SCROLL
-	};
-	__run_commands(dev, buffer, sizeof(buffer), 0, 0);
-	/*
-	ssd1306_command(SSD1306_SET_VERTICAL_SCROLL_AREA);
-	ssd1306_command(0X00);
-	ssd1306_command(SSD1306_LCDHEIGHT);
-	ssd1306_command(SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL);
-	ssd1306_command(0X00);
-	ssd1306_command(start);
-	ssd1306_command(0X00);
-	ssd1306_command(stop);
-	ssd1306_command(0X01);
-	ssd1306_command(SSD1306_ACTIVATE_SCROLL);*/
-}
-
-// startscrolldiagleft
-// Activate a diagonal scroll for rows start through stop
-// Hint, the display is 16 rows tall. To scroll the whole display, run:
-// display.scrollright(0x00, 0x0F)
-/*void SSD1306::startscrolldiagleft(uint8_t start, uint8_t stop){
-	ssd1306_command(SSD1306_SET_VERTICAL_SCROLL_AREA);
-	ssd1306_command(0X00);
-	ssd1306_command(SSD1306_LCDHEIGHT);
-	ssd1306_command(SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL);
-	ssd1306_command(0X00);
-	ssd1306_command(start);
-	ssd1306_command(0X00);
-	ssd1306_command(stop);
-	ssd1306_command(0X01);
-	ssd1306_command(SSD1306_ACTIVATE_SCROLL);
-}
-
-void SSD1306::stopscroll(void){
-	ssd1306_command(SSD1306_DEACTIVATE_SCROLL);
-}*/
-
-/*
-static void ssd1306_fill(unsigned char dat)
-{
-	unsigned char i,j;
-
-	ssd1306_command(0x00);//set lower column address
-	ssd1306_command(0x10);//set higher column address
-	ssd1306_command(0xB0);//set page address
-
-	for (byte i=0; i<(SSD1306_LCDHEIGHT/8); i++)
-	{
-			// send a bunch of data in one xmission
-			ssd1306_command(0xB0 + i);//set page address
-			ssd1306_command(0);//set lower column address
-			ssd1306_command(0x10);//set higher column address
-
-			for(byte j = 0; j < 8; j++){
-					Wire.beginTransmission(_i2caddr);
-					Wire.write(0x40);
-					for (byte k = 0; k < 16; k++) {
-							Wire.write(dat);
-					}
-					Wire.endTransmission();
-			}
-	}
-}
-
-void ssd1306_draw8x8(uint8_t* buffer, uint8_t x, uint8_t y){
-	// send a bunch of data in one xmission
-	ssd1306_command(0xB0 + y);//set page address
-	ssd1306_command(x & 0xf);//set lower column address
-	ssd1306_command(0x10 | (x >> 4));//set higher column address
-
-	Wire.beginTransmission(_i2caddr);
-	Wire.write(0x40);
-	Wire.write(buffer, 8);
-	Wire.endTransmission();
-}
-*/
 
 CONSTRUCTOR(ssd1306_setup){
 	i2c = i2c_open(0);
 }
-
-#ifdef __AVR__
-#include <avr/io.h>
-#include <avr/pgmspace.h>
-#else
-#define PROGMEM
-#endif
 
 // Standard ASCII 5x7 font
 static const unsigned char font[] PROGMEM = {
@@ -720,9 +566,3 @@ static const unsigned char font[] PROGMEM = {
 0x00, 0x3C, 0x3C, 0x3C, 0x3C,
 0x00, 0x00, 0x00, 0x00, 0x00
 };
-
-void ssd1306_get_glyph(uint8_t ch, char *glyph){
-	for(int c = 0; c < 5; c++){
-		*(glyph++) = pgm_read_byte(&(font[5 * ch + c]));
-	}
-}

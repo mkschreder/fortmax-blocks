@@ -42,6 +42,7 @@ void _start_measure(void *ptr){
 	l3g4200d_readdata(dev, _gyro_read_completed, dev);
 }
 
+/*
 void _heartbeat(void *ptr){
 	uart_printf("X"); 
 	async_schedule(_heartbeat, 0, 100000UL);
@@ -55,14 +56,10 @@ void _reinit_display(void *ptr){
 void _data_sent(void *ptr){
 	uart_puts("datadone\n");
 }
-
+*/
+/*
 void _send_string(void *ptr){
-	/*static const char data[128] =
-		"This is an 128x64 monochrome OLE"
-		"D display. And now I'm using a g"
-		"raphical font as well! The displ"
-		"ay can do up to 8 lines of text!";*/
-	static const char data[] =
+	static const char data[170] =
 		"Hello World! Now we have a worki"
 		"ng OLED display driver for the S"
 		"SSD1306 display controller. It's"
@@ -80,6 +77,7 @@ void _send_string(void *ptr){
 	}
 	idx += 64;
 }
+
 void _clear_display(void *ptr){
 	uart_puts("clear 1/2 page\n");
 	static uint8_t buffer[64];
@@ -106,7 +104,7 @@ void _clear_display(void *ptr){
 		ssd1306_putraw(ptr, buffer, sizeof(buffer), _clear_display, ptr);
 	} 
 }
-
+*/
 int main(void){
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
 	bus_master_init();
@@ -141,15 +139,25 @@ int main(void){
 	//async_schedule(_heartbeat, 0, 100000UL); 
 	
 	handle_t disp = ssd1306_open(0);
-	ssd1306_init(disp, _clear_display, disp);
 	
+	//ssd1306_init(disp, _clear_display, disp);
+
+	uint16_t count = 0; 
 	while(1){
+		timeout_t time = timer_get_clock(0);
+		driver_tick();
+		
+		ssd1306_xy_printf(disp, 0, 0, "Timer: %04x%04x", (uint16_t)(time >> 16), (uint16_t)(time & 0xffff));
+		ssd1306_xy_printf(disp, 0, 1, "Loop:  %u", count++);
+		ssd1306_xy_printf(disp, 0, 2, "Tasks: %d/%d",
+			async_get_active_tasks(), async_get_max_tasks());
+		ssd1306_xy_printf(disp, 0, 3, "Loop time: %d usec", timer_clock_to_us(0, timer_get_clock(0) - time));
+		
 		//uart_puts("\e[H\e[?25l");
 		//uart_printf("KVARS: \n"); 
 		//struct kvar *vars = kvar_get_all();
 
-		//uart_printf("Decl: %d %d     \n", (uint16_t)kdata.distance[0], (uint16_t)kdata.distance[1]);
-		timeout_t time = timer_get_clock(0); 
+		//uart_printf("Decl: %d %d     \n", (uint16_t)kdata.distance[0], (uint16_t)kdata.distance[1]); 
 		//uart_printf("TIME: %04x%04x\n", (uint16_t)(time >> 16), (uint16_t)time); 
 		/*if(vars){
 			list_for_each(i, &vars->list) {
@@ -163,7 +171,7 @@ int main(void){
 			kdata.distance[0], kdata.distance[1], kdata.last_error);
 		for(int c = 0; c < 6; c++)
 			uart_printf("ADC %d: %d\n", c, kdata.adc[c]);*/
-		driver_tick();
+		
 	}
 	/*
 	uint8_t buffer[16];

@@ -196,6 +196,14 @@ int8_t async_schedule_each(uint8_t *array, uint8_t stride, uint8_t size, async_i
 	});
 }
 
+uint16_t async_get_max_tasks(){
+	return POOL_SIZE; 
+}
+
+uint16_t async_get_active_tasks(){
+	return POOL_SIZE - sem_value(&_semaphore);
+}
+
 void async_stats(void){
 	uart_printf("Memory/task: %d\n", sizeof(async_task_t));
 	uart_printf("Total: %d\n", sizeof(async_task_t) * 2 + sizeof(_pool));

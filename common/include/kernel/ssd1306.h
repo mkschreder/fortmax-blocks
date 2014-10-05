@@ -50,8 +50,14 @@
 #define SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL 0x2A
 
 handle_t ssd1306_open(id_t id);
+int16_t ssd1306_xy_puts(handle_t dev, uint8_t x, uint8_t y, const char *str);
+int16_t ssd1306_xy_printf(handle_t dev, uint8_t x, uint8_t y, const char *str, ...); 
+void ssd1306_reset();
+
+/*
 int8_t ssd1306_puts(handle_t dev, const char *str, async_callback_t callback, void *ptr);
 int8_t ssd1306_putraw(handle_t dev, const uint8_t *data, uint8_t size, async_callback_t callback, void *ptr); 
 int8_t 	ssd1306_init(handle_t dev, async_callback_t callback, void *ptr); 
 int8_t ssd1306_filltest(handle_t dev, async_callback_t callback, void *ptr); 
 void ssd1306_seek(handle_t h, uint16_t addr); 
+*/
