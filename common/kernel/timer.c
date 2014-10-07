@@ -82,7 +82,7 @@ int16_t timer_close(handle_t h){
 
 timeout_t timer_get_clock(handle_t h){
 	timeout_t clock; 
-	ATOMIC_BLOCK(ATOMIC_RESTORE_STATE){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		clock = TCNT1 + _timer1_ovf * 65535;
 	}
 	return clock; 
