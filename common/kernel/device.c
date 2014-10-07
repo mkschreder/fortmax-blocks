@@ -31,12 +31,14 @@ void driver_register(struct driver *drv){
 	}
 }
 
-
 void driver_tick(void){
 	if(!_drv_list) return;
 	for(struct driver *i = _drv_list; i != 0; i = i->next){
-		//uart_printf("asdf"); 
-		if(i->tick != 0) i->tick(); 
+		//uart_printf("asdf");
+		async_tick(); 
+		if(i->tick != 0) i->tick();
+		// call extra async tick to reduce latency
+		async_tick(); 
 	}
 }
 /*

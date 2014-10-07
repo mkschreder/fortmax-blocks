@@ -47,7 +47,7 @@ struct async_task *__alloc_task(void){
 	return op;
 }
 
-void __async_done(struct async_task *op, uint8_t success){
+static void __async_done(struct async_task *op, uint8_t success){
 	if(success && op->completed)
 		op->completed(op->completed_arg);
 	else {
@@ -75,7 +75,12 @@ void __reschedule(struct async_task *op, timeout_t timeout){
 int8_t async_wait(
 	async_callback_t success, async_callback_t fail,
 	void *arg, volatile uint8_t *flag, timeout_t timeout){
-	if(!success) return FAIL; 
+	if(!success) return FAIL;
+	/*if(*flag) {
+		success(arg);
+		return SUCCESS;
+	}*/
+	
 	struct async_task *op = __alloc_task();
 	//op->failed = fail;
 	op->wait_on = flag;
@@ -96,15 +101,17 @@ int8_t async_schedule(async_callback_t cb, void *arg, timeout_t time){
 	return SUCCESS; 
 }
 
-static void async_tick(void){
+ void async_tick(void){
 	//uart_printf("TICK!\n");
 	struct list_head *i, *n;
-	
-	list_for_each_safe(i, n, &_to_schedule){
-		list_del_init(i);
-		list_add_tail(i, &_tasks);
-	}
 
+	//if(!list_empty(&_to_schedule)){
+		list_for_each_safe(i, n, &_to_schedule){
+			list_del_init(i);
+			list_add_tail(i, &_tasks);
+		}
+	//}
+	
 	// iterates thorugh the tasks and calls the callbacks if 
 	list_for_each_safe(i, n, &_tasks) {
 		struct async_task *op = list_entry(i, struct async_task, list);
@@ -196,11 +203,11 @@ int8_t async_schedule_each(uint8_t *array, uint8_t stride, uint8_t size, async_i
 	});
 }
 
-uint16_t async_get_max_tasks(){
+uint16_t async_get_max_tasks(void){
 	return POOL_SIZE; 
 }
 
-uint16_t async_get_active_tasks(){
+uint16_t async_get_active_tasks(void){
 	return POOL_SIZE - sem_value(&_semaphore);
 }
 

@@ -7,6 +7,7 @@
 #include <kernel/hcsr04.h>
 #include <kernel/gpio.h>
 #include <kernel/timer.h>
+#include <kernel/async.h>
 
 typedef struct hcsr04 {
 	int8_t trig;
@@ -94,7 +95,7 @@ static void (*const state_table[STATE_COUNT][EV_COUNT])(hcsr04_t *hc) = {
 	{ _hcsr_idle_tick, 	_hcsr_echo_up, 	_hcsr_echo_down, _hcsr_idle}		// triggered
 };
 
-static void interrupt(pcint_config_t *conf){
+static void interrupt(pcint_config_t *conf, void *arg){
 	hcsr04_t *hc = (hcsr04_t*)conf->arg;
 	if(!hc) return;
 	
@@ -224,6 +225,7 @@ void hcsr04_tick(void){
 			state_table[hc->state][EV_TICK](hc);
 		}
 	}
+	//async_tick(); 
 }
 
 DECLARE_DRIVER(hcsr04); 

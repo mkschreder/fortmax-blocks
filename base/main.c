@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 **********************************************/
 
+#include <util/delay.h>
+
 #include <drivers/avrbus.h>
 #include <drivers/uart.h>
 
@@ -142,17 +144,35 @@ int main(void){
 	
 	//ssd1306_init(disp, _clear_display, disp);
 
-	uint16_t count = 0; 
+	uint16_t count = 0;
+	
+	//ssd1306_xy_printf(disp, 0, 3, "Loop time: %4d usec", 0);
+
 	while(1){
 		timeout_t time = timer_get_clock(0);
-		driver_tick();
+		//DDRD |= _BV(5);
+		//PORTD |= _BV(5);
 		
+		driver_tick();
+
+		ssd1306_xy_printf(disp, 0, 0, "       OSKit.se     ");
+		async_tick(); 
+		ssd1306_xy_printf(disp, 0, 2, "   Flight Controller");
+		async_tick();
+		ssd1306_xy_printf(disp, 0, 4, "        Board");
+		async_tick();
+		ssd1306_xy_printf(disp, 0, 6, "      Time: %dus    ", timer_clock_to_us(0, timer_get_clock(0) - time));
+		/*
 		ssd1306_xy_printf(disp, 0, 0, "Timer: %04x%04x", (uint16_t)(time >> 16), (uint16_t)(time & 0xffff));
+		async_tick(); 
 		ssd1306_xy_printf(disp, 0, 1, "Loop:  %u", count++);
+		async_tick();
 		ssd1306_xy_printf(disp, 0, 2, "Tasks: %d/%d",
 			async_get_active_tasks(), async_get_max_tasks());
-		ssd1306_xy_printf(disp, 0, 3, "Loop time: %d usec", timer_clock_to_us(0, timer_get_clock(0) - time));
-		
+		async_tick();
+		ssd1306_xy_printf(disp, 0, 3, "Loop time: %4d usec", timer_clock_to_us(0, timer_get_clock(0) - time));
+*/
+		//PORTD &= ~_BV(5); 
 		//uart_puts("\e[H\e[?25l");
 		//uart_printf("KVARS: \n"); 
 		//struct kvar *vars = kvar_get_all();

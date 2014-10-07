@@ -181,7 +181,7 @@ static void _tempref_set_complete(void *ptr){
 	dev->flags.busy = 0;
 	dev->flags.initialized = 1;
 
-	uart_puts("init done!\n"); 
+	//uart_puts("init done!\n"); 
 	if(dev->request.success){
 		async_schedule(dev->request.success, dev->request.arg, 0);
 	}
@@ -190,7 +190,7 @@ static void _tempref_set_complete(void *ptr){
 static void __l3g4200d_init_set_tempref(handle_t handle) {
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	//if(dev->flags.busy) return EBUSY;
-	uart_puts("set_temp\n");
+	//uart_puts("set_temp\n");
 	
 	dev->request.data.buffer[0] = L3G4200D_OUT_TEMP; 
 	i2c_transfer(i2c, (i2c_command_t){
@@ -206,7 +206,7 @@ static void __l3g4200d_init_set_tempref(handle_t handle) {
 
 // second stage of init process
 static void __init_set_range(void *ptr){
-	uart_puts("setrange\n"); 
+	//uart_puts("setrange\n"); 
 	struct l3g4200d *s = (struct l3g4200d*)ptr;
 	s->request.data.buffer[0] = L3G4200D_CTRL_REG4;
 	s->request.data.buffer[1] = L3G4200D_RANGE<<4; 
@@ -220,7 +220,7 @@ static void __init_set_range(void *ptr){
 }
 
 static void __l3g4200d_init(struct l3g4200d *dev){
-	uart_puts("init\n"); 
+	//uart_puts("init\n"); 
 	// fireoff the init sequence
 	dev->request.data.buffer[0] = L3G4200D_CTRL_REG1;
 	dev->request.data.buffer[1] = 0x0f; 
@@ -236,7 +236,7 @@ static void __l3g4200d_init(struct l3g4200d *dev){
 void l3g4200d_configure(handle_t handle,
 	async_callback_t success, async_callback_t fail, void *arg){
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
-	uart_puts("conf\n");
+	//uart_puts("conf\n");
 	//DDRD &= ~_BV(5);
 	
 	dev->request.success = success;
@@ -264,16 +264,3 @@ handle_t l3g4200d_open(id_t id) {
 	#endif
 	return s; 
 }
-
-void l3g4200d_init(void){
-
-}
-
-void l3g4200d_tick(void){
-	for(int c = 0; c < L3G4200D_COUNT; c++){
-		//struct l3g4200d *sensor = &_sensors[c];
-		//state_table[sensor->state][EV_TICK](sensor);
-	}
-}
-
-//DECLARE_DRIVER(l3g4200d); 

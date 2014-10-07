@@ -40,7 +40,7 @@ int main(){
 	
 	uint16_t motor_speed[4];
 	
-	bus_slave_init(0x5000, (char*)&motor_speed, sizeof(motor_speed));
+	//bus_slave_init(0x5000, (char*)&motor_speed, sizeof(motor_speed));
 	
 	uint16_t err = 0;
 	uint16_t reads = 0; 
@@ -49,12 +49,19 @@ int main(){
 	//DDRB |= _BV(1);
 	
 	for(int c = 0; c < 4; c++)
-		motor_speed[c] = 100;
+		motor_speed[c] = 1500;
 		
 	while(1){
-		for(int c = 0; c < 4; c++)
+		for(int c = 0; c < 4; c++){
 			motor_set_speed(c, motor_speed[c]);
-		motor_do_epoch();
+			motor_speed[c]++;
+			if(motor_speed[c] > 2000) motor_speed[c] = 1000; 
+		}
+		for(int c = 0; c < 1000; c++){
+			//_delay_us(1); 
+			motor_do_epoch();
+		}
+		//_delay_ms(10); 
 		/*
 		uint32_t end = time_get_clock() + time_us_to_clock(1500); 
 		while(end > time_get_clock());

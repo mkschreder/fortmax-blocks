@@ -24,11 +24,6 @@ ISR(ADC_vect)
 	_completed = 1; 
 }
 
-void adc_init(void){
-	//_adc_port = PORTC; 
-}
-
-
 uint16_t adc_read(handle_t h){
 	uint8_t sreg = SREG;
 	cli(); 
@@ -114,8 +109,3 @@ int16_t adc_close(handle_t inst){
 	return SUCCESS; 
 }
 
-void adc_tick(void){
-
-}
-
-DECLARE_DRIVER(adc); 

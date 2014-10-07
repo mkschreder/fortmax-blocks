@@ -168,14 +168,8 @@ int16_t gpio_ioctl(handle_t h, uint8_t ioc, int32_t data){
 	return SUCCESS; 
 }
 
-static void gpio_tick(void){
-	
-}
-
 CONSTRUCTOR(gpio_init){
 	pin_lock(GPIO_PB6);
 	pin_lock(GPIO_PB7);
 	memset(_pcint_table, 0, sizeof(_pcint_table)); 
 }
-
-DECLARE_DRIVER(gpio); 

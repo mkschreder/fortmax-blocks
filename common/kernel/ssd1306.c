@@ -84,12 +84,16 @@ static void __sync_display(void *ptr);
 static void __sync_display_done(void *ptr){
 	struct ssd1306_device *dev = (ssd1306_device_t*)ptr;
 	dev->flags.need_sync = 0;
+	PORTD &= ~_BV(5); 
 	async_schedule(__sync_display, dev, 0); 
 }
 
 static void __sync_display(void *ptr){
 	struct ssd1306_device *dev = (ssd1306_device_t*)ptr;
 
+	DDRD |= _BV(5);
+		PORTD |= _BV(5);
+		
 	uint8_t buffer[] = {
 		U8G_ESC_ADR(0),           // instruction mode 
 		U8G_ESC_CS(1),             // enable chip 
@@ -148,66 +152,78 @@ handle_t ssd1306_open(id_t id){
 	dev->flags.in_use = 1;
 	dev->flags.busy = 0;
 	
-	__init_display(dev, __clear_display, dev);
+	__init_display(dev, __sync_display, dev);
 	
 	return dev;
 }
 
 static void __process(void *arg) {
+	DDRD |= _BV(4);
+	PORTD |= _BV(4);
+	
 	ssd1306_device_t *dev = (ssd1306_device_t*)arg;
 	struct ssd1306_request *req = &dev->request[dev->request_ptr];
-	
-	static uint8_t buffer[2];
 
-	if(req->flags.command)
-		buffer[0] = 0x00;
-	else {
-		buffer[0] = 0x40;
-		//dev->addr++;
-	}
-	if(req->flags.pgmem){
-		buffer[1] = pgm_read_byte(&req->data[req->ptr]);
-		req->ptr++;
-	}
-	else if(req->flags.text){
-		//uint16_t col = (dev->addr & 0x1ff);
-		static uint16_t x = 0;
-		if(req->ptr == 0) x = 1;
-		else x++;
+	//static uint8_t i2c_buf[2];
+	//int c = 0; 
+	//for(c = 0; c < sizeof(i2c_buf); c+=2){
+		static uint8_t buffer[2];
 
-		if((x % 128) > 125){
-			buffer[1] = 0x0;
-		} else {
-			if(req->ptr == 0) 
-				req->current_char = req->data[0];
-				
-			if((req->ptr & 0x07) > 5){
-				req->ptr &= ~0x07; // next char;
-				req->ptr += 8; 
-				req->current_char = req->data[req->ptr >> 3]; 
-			}
-			uint8_t ch = req->current_char;
-			uint8_t col = (req->ptr & 0x07);
+		if(req->flags.command)
+			buffer[0] = 0x00;
+		else {
+			buffer[0] = 0x40;
+			//dev->addr++;
+		}
+		if(req->flags.pgmem){
+			buffer[1] = pgm_read_byte(&req->data[req->ptr]);
 			req->ptr++;
-			
-			if(col < 5) // next four cols are just font stuff
-				buffer[1] = pgm_read_byte(&font[ch * 5 + (col)]);
-			else if(col == 5) // last one is letter separator
-				buffer[1] = 0;
 		}
-	} else {
-		buffer[1] = req->data[req->ptr];
-		req->ptr++;
-	}
+		else if(req->flags.text){
+			//uint16_t col = (dev->addr & 0x1ff);
+			static uint16_t x = 0;
+			if(req->ptr == 0) x = 1;
+			else x++;
 
-	if(req->ptr >= req->size){
-		dev->request_ptr++;
-		if(dev->request_ptr >= dev->request_size){
-			dev->flags.busy = 0;
-			async_schedule(dev->callback, dev->arg, 0);
-			return; 
+			if((x % 128) > 125){
+				buffer[1] = 0x0;
+			} else {
+				if(req->ptr == 0) 
+					req->current_char = req->data[0];
+					
+				if((req->ptr & 0x07) > 5){
+					req->ptr &= ~0x07; // next char;
+					req->ptr += 8; 
+					req->current_char = req->data[req->ptr >> 3]; 
+				}
+				uint8_t ch = req->current_char;
+				uint8_t col = (req->ptr & 0x07);
+				req->ptr++;
+				
+				if(col < 5) // next four cols are just font stuff
+					buffer[1] = pgm_read_byte(&font[ch * 5 + (col)]);
+				else if(col == 5) // last one is letter separator
+					buffer[1] = 0;
+			}
+		} else {
+			buffer[1] = req->data[req->ptr];
+			req->ptr++;
 		}
-	}
+
+		//i2c_buf[c] = buffer[0];
+		//i2c_buf[c+1] = buffer[1];
+		PORTD &=~_BV(4); 
+		if(req->ptr >= req->size){
+			dev->request_ptr++;
+			if(dev->request_ptr >= dev->request_size){
+				dev->flags.busy = 0;
+				if(dev->callback) dev->callback(dev->arg);
+				//break; 
+				//async_schedule(dev->callback, dev->arg, 0);
+				return; 
+			}
+		}
+	//}
 	
 	// send the i2c command to the i2c driver and have it call
 	// supplied callback when the transfer is completed
@@ -255,7 +271,7 @@ static void __init_display(handle_t h, async_callback_t callback, void *ptr) {
 	struct ssd1306_device *dev = (struct ssd1306_device*)h;
 	
 	dev->request[0] = (struct ssd1306_request){
-		.data = init_sequence,
+		.data = (uint8_t*)init_sequence,
 		.flags.text = 0, 
 		.flags.command = 1,
 		.flags.pgmem = 1, 
@@ -279,7 +295,7 @@ int16_t ssd1306_xy_puts(handle_t h,
 	struct ssd1306_device *dev = (struct ssd1306_device*)h;
 
 	uint8_t start = y * TEXT_W + x; 
-	strncpy(dev->text + start, str, sizeof(dev->text) - start);
+	strncpy((char*)(dev->text + start), str, sizeof(dev->text) - start);
 
 	dev->flags.need_sync = 1; 
 	return 1; 
@@ -292,7 +308,7 @@ int16_t ssd1306_xy_printf(handle_t h, uint8_t x, uint8_t y, const char *fmt, ...
 	struct ssd1306_device *dev = (struct ssd1306_device*)h;
 	uint8_t start = y * TEXT_W + x;
 	
-	n = vsnprintf(dev->text + start, sizeof(dev->text)-start, fmt, vl);
+	n = vsnprintf((char*)(dev->text + start), sizeof(dev->text)-start, fmt, vl);
 	
 	va_end(vl);
 

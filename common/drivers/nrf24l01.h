@@ -19,11 +19,21 @@ Please refer to LICENSE file for licensing information.
 #include <avr/io.h>
 
 //CE and CSN port definitions
+/*#define FX_RADIO
+
+#ifdef FX_FLIGHT_CONTROL
 #define NRF24L01_DDR DDRD
 #define NRF24L01_PORT PORTD
-#define NRF24L01_CE PD3
-#define NRF24L01_CSN PD2
-
+#define NRF24L01_CE PD2
+#define NRF24L01_CSN PD3
+#elseif FX_RADIO*/
+#define NRF24L01_DDR DDRB
+#define NRF24L01_PORT PORTB
+#define NRF24L01_CE PB0
+#define NRF24L01_CSN PB1
+/*#else
+#error "FX_FLIGHT_CONTROL or FX_RADIO needs to be defined!"
+#endif*/
 //define the spi path
 #define NRF24L01_SPIPATH "spi.h" //spi lib path
 

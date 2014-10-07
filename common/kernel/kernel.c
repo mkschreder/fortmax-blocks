@@ -15,10 +15,6 @@ void _hcsr2_complete(void *arg){
 	hcsr04_trigger(hcsr2, _hcsr2_complete, 0); 
 }
 
-void kernel_init(void){
-	
-}
-
 void _adc_completed(void *arg); 
 
 void _do_measure(void *arg){
@@ -83,9 +79,3 @@ handle_t kernel_open(id_t id){
 int16_t kernel_close(handle_t inst){
 	return SUCCESS; 
 }
-
-void kernel_tick(void){
-	kdata.last_error = "OK";
-}
-
-DECLARE_DRIVER(kernel); 

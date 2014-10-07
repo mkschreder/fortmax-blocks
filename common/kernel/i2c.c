@@ -55,9 +55,12 @@ static volatile struct i2c_device _devices[1];
 
 volatile uint8_t _i2c_write_done = 0, _i2c_read_done = 0;
 
-static void __i2c_read(struct i2c_device *dev);
+static void __i2c_read(volatile struct i2c_device *dev);
 
 ISR(TWI_vect){
+	//DDRD |= _BV(3);
+	//PORTD |= _BV(3);
+	
 	volatile struct i2c_device *dev = &_devices[0]; 
 
   uint8_t status = TWSR & 0xfc; 
@@ -111,6 +114,7 @@ ISR(TWI_vect){
       _i2c_write_done = 1; 
       TWCR = TWCR_RST;                  //Reset TWI, disable interupts 
   }//switch
+  //PORTD &= ~_BV(3); 
 }//TWI_isr
 
 
@@ -118,7 +122,7 @@ uint8_t twi_busy(void){
   return (bit_is_set(TWCR,TWIE)); //if interrupt is enabled, twi is busy
 }
 
-static void __i2c_write(struct i2c_device *dev){
+static void __i2c_write(volatile struct i2c_device *dev){
 	//uart_puts("i2write\n"); 
 
   _i2c_write_done = 0; 
@@ -129,7 +133,7 @@ static void __i2c_write(struct i2c_device *dev){
 	TWCR = TWCR_START;                    //initiate START
 }
 
-static void __i2c_read(struct i2c_device *dev){
+static void __i2c_read(volatile struct i2c_device *dev){
   _i2c_read_done = 0;
   
 	dev->cmd.addr = (dev->cmd.addr | TW_READ); //set twi bus address, mark as write 
@@ -145,7 +149,8 @@ static void __i2c_completed(void *ptr){
 	struct i2c_device *dev = (struct i2c_device*)ptr;
 	dev->busy = 0; 
 	if(dev->cmd.callback){
-		async_schedule(dev->cmd.callback, dev->cmd.arg, 0);
+		dev->cmd.callback(dev->cmd.arg); 
+		//async_schedule(dev->cmd.callback, dev->cmd.arg, 0);
 	}
 }
 
@@ -187,15 +192,9 @@ CONSTRUCTOR(i2c_init){
 }
 
 handle_t i2c_open(id_t id){
-	return &_devices[0];
+	return (handle_t)&_devices[0];
 }
 
 int16_t i2c_close(handle_t h){
 	return SUCCESS;
 }
-
-static void i2c_tick(void){
-	
-}
-
-DECLARE_DRIVER(i2c); 

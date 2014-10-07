@@ -320,7 +320,7 @@ void uart_init(unsigned int baudrate)
     UART_RxHead = 0;
     UART_RxTail = 0;
 
-    memset(UART_TxBuf, '.', sizeof(UART_TxBuf)); 
+    memset((void*)UART_TxBuf, '.', sizeof(UART_TxBuf)); 
 #if defined( AT90_UART )
     /* set baud rate */
     UBRR = (unsigned char)baudrate; 

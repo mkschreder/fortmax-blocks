@@ -52,7 +52,7 @@
 handle_t ssd1306_open(id_t id);
 int16_t ssd1306_xy_puts(handle_t dev, uint8_t x, uint8_t y, const char *str);
 int16_t ssd1306_xy_printf(handle_t dev, uint8_t x, uint8_t y, const char *str, ...); 
-void ssd1306_reset();
+void ssd1306_reset(handle_t h);
 
 /*
 int8_t ssd1306_puts(handle_t dev, const char *str, async_callback_t callback, void *ptr);

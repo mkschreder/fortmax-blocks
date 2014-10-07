@@ -1,4 +1,5 @@
 #include <kernel/timer.h>
+#include <util/atomic.h>
 
 /*
 #if __STDC_VERSION__ >= 199901L
@@ -58,14 +59,10 @@ ISR (TIMER1_OVF_vect)
 	_timer1_ovf++;
 }
 
-void timer_init(void){
+CONSTRUCTOR(timer_init){
 	TCCR1A = 0;
-	TCCR1B = _BV(CS11);
+	TCCR1B = _BV(CS10);
 	TIMSK1 |= _BV(TOIE0);
-}
-
-void timer_tick(void){
-
 }
 
 handle_t timer_open(id_t id){
@@ -84,7 +81,11 @@ int16_t timer_close(handle_t h){
 
 
 timeout_t timer_get_clock(handle_t h){
-	return TCNT1 + _timer1_ovf * 65535;
+	timeout_t clock; 
+	ATOMIC_BLOCK(ATOMIC_RESTORE_STATE){
+		clock = TCNT1 + _timer1_ovf * 65535;
+	}
+	return clock; 
 }
 
 timeout_t timer_us_to_clock(handle_t h, uint32_t us){
@@ -97,5 +98,5 @@ uint32_t timer_clock_to_us(handle_t h, timeout_t ticks){
 	return ticks / (F_CPU / 1000000 / ps); 
 }
 
-DECLARE_DRIVER(timer);
+//DECLARE_DRIVER(timer);
 
