@@ -51,7 +51,9 @@ struct i2c_device {
 	uint8_t _buf_ptr; 
 };
 
-static volatile struct i2c_device _devices[1];
+static volatile struct i2c_device _device;
+static LIST_HEAD(_wait_list);
+static struct i2c_command *_cur_command = 0; 
 
 volatile uint8_t _i2c_write_done = 0, _i2c_read_done = 0;
 
@@ -61,7 +63,7 @@ ISR(TWI_vect){
 	//DDRD |= _BV(3);
 	//PORTD |= _BV(3);
 	
-	volatile struct i2c_device *dev = &_devices[0]; 
+	volatile struct i2c_device *dev = &_device; 
 
   uint8_t status = TWSR & 0xfc; 
   switch (status) {
@@ -147,19 +149,18 @@ static void __i2c_completed(void *ptr){
 	//uart_puts("i2done!\n");
 	
 	struct i2c_device *dev = (struct i2c_device*)ptr;
-	dev->busy = 0; 
+	dev->busy = 0;
+	
 	if(dev->cmd.callback){
 		dev->cmd.callback(dev->cmd.arg); 
 		//async_schedule(dev->cmd.callback, dev->cmd.arg, 0);
 	}
 }
 
-int8_t i2c_transfer(handle_t handle, i2c_command_t cmd){
-	struct i2c_device *dev = (struct i2c_device*)handle;
-  if(dev->busy) return EBUSY;
-
-  dev->busy = 1;
-	dev->cmd = cmd;
+int8_t _i2c_transfer(struct i2c_device *dev, i2c_command *cmd){
+	// the command is copied to the device
+	dev->busy = 1;
+	dev->cmd = *cmd;
 	//dev->arg = dev;
 
 	_i2c_write_done = 0; 
@@ -183,6 +184,29 @@ int8_t i2c_transfer(handle_t handle, i2c_command_t cmd){
 		__i2c_read(dev); 
 	}
   return SUCCESS; 
+}
+
+int8_t i2c_transfer(handle_t handle, i2c_command_t *cmd){
+	struct i2c_device *dev = (struct i2c_device*)handle;
+
+	//while(dev->busy) driver_tick(); 
+  //if(dev->busy) return EBUSY;
+	// link the command into the list of commands to be processed
+  if(dev->busy) {
+		if(cmd->flags.in_wait_list) return; 
+		list_add_tail(&cmd->_list, &_wait_list);
+		return EBUSY;
+	}
+
+	return _i2c_transfer(dev, cmd); 
+}
+
+void i2c_tick(void){
+	struct i2c_device *dev = &_device;
+	if(!dev->busy && !list_empty(&_wait_list)){
+		struct i2c_command *cmd = list_first_entry(&_wait_list, struct i2c_command, _list);
+		_i2c_transfer(dev, cmd); 
+	}
 }
 
 CONSTRUCTOR(i2c_init){

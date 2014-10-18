@@ -36,7 +36,7 @@ void _adc_completed(void *arg){
 }
 
 handle_t kernel_open(id_t id){
-	hcsr1 = hcsr04_open(0);
+	/*hcsr1 = hcsr04_open(0);
 	hcsr2 = hcsr04_open(1);
 
 	if(!hcsr1 || !hcsr2 ||
@@ -48,7 +48,7 @@ handle_t kernel_open(id_t id){
 
 	hcsr04_trigger(hcsr1, _hcsr1_complete, 0);
 	hcsr04_trigger(hcsr2, _hcsr2_complete, 0);
-
+*/
 	adc = adc_open(0);
 	timer1 = timer_open(1);
 	gpio = gpio_open(0);

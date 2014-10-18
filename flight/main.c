@@ -59,10 +59,13 @@ int main(void){
 	const char *status = "n/a";
 	uint16_t packets = 0;
 	static uint8_t addr[] = {0xE8, 0xE8, 0xF0, 0xF0, 0xE2};
-	
+
 	nrf24l01_init();
 	nrf24l01_settxaddr(addr);
-	
+/*
+	while(1){
+		spi_readwritebyte(0xaa);
+	}*/
 	while(1){
 		timeout_t time = timer_get_clock(0);
 		

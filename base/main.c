@@ -16,7 +16,23 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 **********************************************/
+#include <stdio.h>
+#include "basic.h"
 
+
+void kwdhook_(char *msg) {
+	//if (!strcmp(msg,"PRINTS"))
+	//	expr(), emit(PRINTS_);
+	//else	return 0;
+	return 1;
+}
+/*
+int dobasic(int argc, char **argv) {
+	initbasic(0);
+	kwdhook=kwdhook_;
+	return interp(stdin);
+}
+*/
 #include <util/delay.h>
 
 #include <drivers/avrbus.h>

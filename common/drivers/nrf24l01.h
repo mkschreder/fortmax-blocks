@@ -21,7 +21,7 @@ Please refer to LICENSE file for licensing information.
 //CE and CSN port definitions
 /*#define FX_RADIO
 
-#ifdef FX_FLIGHT_CONTROL
+#ifdef FX_FLIGHT_CONTROL*//*
 #define NRF24L01_DDR DDRD
 #define NRF24L01_PORT PORTD
 #define NRF24L01_CE PD2
@@ -63,7 +63,7 @@ Please refer to LICENSE file for licensing information.
 #define NRF24L01_RF24_CRC NRF24L01_RF24_CRC_16
 
 //transmission channel
-#define NRF24L01_CH 76
+#define NRF24L01_CH 54
 
 //payload lenght
 #define NRF24L01_PAYLOAD 16

@@ -43,17 +43,16 @@ ISR(ADC_vect)
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#include <drivers/avrbus.h>
-#include <drivers/uart.h>
-#include <drivers/time.h>
+//#include <drivers/avrbus.h>
+//#include <drivers/uart.h>
+//#include <drivers/time.h>
 
 #include <string.h>
-
 
 extern "C" uint16_t ext_get_address();
 
 int main(){
-	
+/*
 	PORTC |= _BV(6);
 	
 	uart_init(UART_BAUD_SELECT(38400, F_CPU));
@@ -101,18 +100,6 @@ int main(){
 		//_adc = ADCH;			// Output ADCH to PortD
 		//ADCSRA |= 1<<ADSC;
 		
-		/*uint16_t adc = 0;
-		cli();
-		adc = _adc;
-		sei();
-		
-		uint32_t time = timeout_from_now(adc); 
-		DDRB |= _BV(1);
-		PORTB |= _BV(1);
-		while(!timeout_expired(time)); 
-		PORTB &= ~_BV(1); 
-		buffer[0] = (char)adc;
-		uart_printf("ADC: %d\n", _adc); */
-		//uart_printf("S:%d, A: %04x\r\n", ext_state(), ext_get_address());
 	}
+	*/
 }

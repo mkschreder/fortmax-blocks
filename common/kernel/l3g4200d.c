@@ -18,6 +18,8 @@ Please refer to LICENSE file for licensing information.
 #include <kernel/l3g4200d.h>
 #include <kernel/l3g4200d_priv.h>
 
+#define debug(msg) {} //uart_puts(msg);
+
 enum {
 	STATE_IDLE,
 	STATE_BUSY,
@@ -69,36 +71,6 @@ static int8_t l3g4200d_temperatureref = 0;
 static double l3g4200d_gtemp = 0; //temperature used for compensation
 #endif
 
-/*
-static void _tempref_get_completed(void *ptr){
-	struct l3g4200d *dev = (struct l3g4200d*)ptr;
-	dev->tempdiff = l3g4200d_temperatureref - (int8_t)dev->request.data.buffer[0]; 
-}
-
-static int8_t l3g4200d_gettemperaturediff(handle_t ptr) {
-	struct l3g4200d *dev = (struct l3g4200d*)ptr;
-	l3g4200d_request_t *req = &dev->request; 
-	req->data.buffer[0] = L3G4200D_OUT_TEMP; 
-	i2c_transfer(i2c, (i2c_command_t){
-		.addr = L3G4200D_ADDR,
-		.buf = req->data.buffer,
-		.wcount = 1,
-		.rcount = 1, 
-		.callback = _tempref_get_completed,
-		.arg = dev
-	});
-	return SUCCESS; 
-}
-*/
-
-/*
-static void l3g4200d_setoffset(double offsetx, double offsety, double offsetz) {
-	l3g4200d_offsetx = offsetx;
-	l3g4200d_offsety = offsety;
-	l3g4200d_offsetz = offsetz;
-}
-*/
-
 static void __rawdata_get_completed(void *ptr){
 	struct l3g4200d *dev = (struct l3g4200d*)ptr;
 	uint8_t *buff = dev->request.data.buffer;
@@ -115,7 +87,7 @@ static void __rawdata_get_completed(void *ptr){
 	}
 }
 
-void l3g4200d_getdata(handle_t handle, double *gx, double *gy, double *gz){
+static void _l3g4200d_get_corrected_data(handle_t handle, double *gx, double *gy, double *gz){
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	
 	#if L3G4200D_CALIBRATED == 1 && L3G4200D_CALIBRATEDDOTEMPCOMP == 1
@@ -139,7 +111,7 @@ void l3g4200d_getdata(handle_t handle, double *gx, double *gy, double *gz){
 	#endif
 }
 
-int8_t l3g4200d_readdata(handle_t handle, async_callback_t callback, void *arg) {
+static int8_t _l3g4200d_readdata(handle_t handle, async_callback_t callback, void *arg) {
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	if(dev->flags.busy) return EBUSY;
 
@@ -152,6 +124,7 @@ int8_t l3g4200d_readdata(handle_t handle, async_callback_t callback, void *arg) 
 
 	dev->request.data.buffer[0] = L3G4200D_OUT_X_L | (1 << 7); 
 
+	debug("L3G: read data\n"); 
 	i2c_transfer(i2c, (i2c_command_t){
 		.addr = L3G4200D_ADDR,
 		.buf = dev->request.data.buffer,
@@ -164,10 +137,14 @@ int8_t l3g4200d_readdata(handle_t handle, async_callback_t callback, void *arg) 
 	return SUCCESS; 
 }
 
-int8_t l3g4200d_getraw(handle_t handle, int16_t *gx, int16_t *gy, int16_t *gz){
+int8_t l3g4200d_read(handle_t handle, int16_t *gx, int16_t *gy, int16_t *gz){
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	*gx = dev->gxraw; *gy = dev->gyraw; *gz = dev->gzraw;
 	return SUCCESS; 
+}
+
+static void _repeat_read(void *ptr){
+	_l3g4200d_readdata(ptr, _repeat_read, ptr); 
 }
 
 static void _tempref_set_complete(void *ptr){
@@ -181,17 +158,20 @@ static void _tempref_set_complete(void *ptr){
 	dev->flags.busy = 0;
 	dev->flags.initialized = 1;
 
+	debug("L3G: init done!\n"); 
 	//uart_puts("init done!\n"); 
 	if(dev->request.success){
 		async_schedule(dev->request.success, dev->request.arg, 0);
 	}
+	
+	_l3g4200d_readdata(dev, _repeat_read, dev);
 }
 
 static void __l3g4200d_init_set_tempref(handle_t handle) {
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	//if(dev->flags.busy) return EBUSY;
 	//uart_puts("set_temp\n");
-	
+	debug("L3G: set tempref\n"); 
 	dev->request.data.buffer[0] = L3G4200D_OUT_TEMP; 
 	i2c_transfer(i2c, (i2c_command_t){
 		.addr = L3G4200D_ADDR,
@@ -209,19 +189,22 @@ static void __init_set_range(void *ptr){
 	//uart_puts("setrange\n"); 
 	struct l3g4200d *s = (struct l3g4200d*)ptr;
 	s->request.data.buffer[0] = L3G4200D_CTRL_REG4;
-	s->request.data.buffer[1] = L3G4200D_RANGE<<4; 
-	i2c_transfer(i2c, (i2c_command_t){
+	s->request.data.buffer[1] = L3G4200D_RANGE<<4;
+	debug("L3G: set range\n");
+	_i2c_command = (i2c_command_t){
 		.addr = L3G4200D_ADDR,
 		.buf = s->request.data.buffer,
 		.wcount = 2,
 		.callback = __l3g4200d_init_set_tempref,
 		.arg = s
 	});
+	i2c_transfer(i2c, &_i2c_buffer)
 }
 
 static void __l3g4200d_init(struct l3g4200d *dev){
 	//uart_puts("init\n"); 
 	// fireoff the init sequence
+	debug("L3G: init\n"); 
 	dev->request.data.buffer[0] = L3G4200D_CTRL_REG1;
 	dev->request.data.buffer[1] = 0x0f; 
 	i2c_transfer(i2c, (i2c_command_t){
@@ -233,7 +216,7 @@ static void __l3g4200d_init(struct l3g4200d *dev){
 	});
 }
 
-void l3g4200d_configure(handle_t handle,
+static void _l3g4200d_configure(handle_t handle,
 	async_callback_t success, async_callback_t fail, void *arg){
 	struct l3g4200d *dev = (struct l3g4200d*)handle;
 	//uart_puts("conf\n");
@@ -242,7 +225,8 @@ void l3g4200d_configure(handle_t handle,
 	dev->request.success = success;
 	dev->request.error = fail;
 	dev->request.arg = arg;
-	
+
+	debug("L3G: configure\n"); 
 	__l3g4200d_init(dev);
 }
 
@@ -262,5 +246,8 @@ handle_t l3g4200d_open(id_t id) {
 	l3g4200d_offsety = L3G4200D_OFFSETY;
 	l3g4200d_offsetz = L3G4200D_OFFSETZ;
 	#endif
+
+	debug("L3G: open\n"); 
+	_l3g4200d_configure(s, 0, 0, 0); 
 	return s; 
 }
