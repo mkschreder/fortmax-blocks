@@ -137,6 +137,8 @@ static void __i2c_write(volatile struct i2c_device *dev){
 
 static void __i2c_read(volatile struct i2c_device *dev){
   _i2c_read_done = 0;
+
+  memset(dev->cmd.buf, 0, dev->cmd.rcount);
   
 	dev->cmd.addr = (dev->cmd.addr | TW_READ); //set twi bus address, mark as write 
 	dev->_rw_count = dev->cmd.rcount;              //load size of xfer

@@ -2,17 +2,17 @@
 #include <kernel/kvar.h>
 #include <kernel/adc.h>
 
-struct kernel_export_data kdata;
+struct kernel_export sys;
 static handle_t hcsr1, hcsr2;
 static handle_t adc, timer1, i2c, gpio; 
 
 void _hcsr1_complete(void *arg){
-	kdata.distance[0] = hcsr04_get_distance(hcsr1); 
+	//kdata.distance[0] = hcsr04_get_distance(hcsr1); 
 	hcsr04_trigger(hcsr1, _hcsr1_complete, 0);
 }
 
 void _hcsr2_complete(void *arg){
-	kdata.distance[1] = hcsr04_get_distance(hcsr2); 
+	//kdata.distance[1] = hcsr04_get_distance(hcsr2); 
 	hcsr04_trigger(hcsr2, _hcsr2_complete, 0); 
 }
 
@@ -27,7 +27,7 @@ void _adc_completed(void *arg){
 	static uint8_t chan = 0;
 	handle_t adc = (handle_t)arg;
 	
-	kdata.adc[chan] = adc_read(adc);
+	//kdata.adc[chan] = adc_read(adc);
 
 	chan = (chan + 1) & 0x07;
 	
@@ -56,21 +56,21 @@ handle_t kernel_open(id_t id){
 	i2c = gpio_open(0);
 	
 	if(!adc){
-		kdata.last_error = "NO_ADC"; 
+		//kdata.last_error = "NO_ADC"; 
 		return INVALID_HANDLE; 
 	}
 	if(!timer1){
-		kdata.last_error = "NO_TIMER"; 
+		//kdata.last_error = "NO_TIMER"; 
 		return INVALID_HANDLE; 
 	}
 	
 	if(!gpio){
-		kdata.last_error = "NO_GPIO";
+		//kdata.last_error = "NO_GPIO";
 		return INVALID_HANDLE;
 	}
 	
 	if(!i2c){
-		kdata.last_error = "NO I2C"; 
+		//kdata.last_error = "NO I2C"; 
 		return INVALID_HANDLE; 
 	}
 	

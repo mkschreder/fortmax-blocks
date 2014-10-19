@@ -21,15 +21,14 @@
 #include <kernel/hcsr04.h>
 #include <kernel/i2c.h>
 
-// data structures for supported kernel functions
-struct kernel_export_data {
-	uint16_t adc[6];
-	uint32_t distance[2];
-
-	char *last_error; 
+struct kernel_export {
+	struct {
+		int16_t x, y, z;
+	} gyro; 
 };
 
-extern struct kernel_export_data kdata; 
+extern struct kernel_export sys;
+
 handle_t kernel_open(id_t id);
 
 //DEVICE_DECLARE(kernel); 
