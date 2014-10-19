@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <util/delay.h>
 
 //#include <drivers/avrbus.h>
-#include <drivers/uart.h>
+#include <kernel/uart.h>
 //#include <drivers/nrf24l01.h>
 //#include <drivers/bmp085.h>
 //#include <drivers/l3g4200d.h>

@@ -20,8 +20,7 @@
 #include <kernel/i2c.h>
 #include <kernel/ssd1306.h>
 #include <kernel/ssd1306_priv.h>
-
-#include "../drivers/uart.h"
+#include <kernel/uart.h>
 
 #include <string.h>
 
