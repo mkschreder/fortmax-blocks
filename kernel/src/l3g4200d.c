@@ -18,7 +18,7 @@ Please refer to LICENSE file for licensing information.
 #include <kernel/l3g4200d.h>
 #include <kernel/l3g4200d_priv.h>
 
-#define debug(msg) uart_puts(msg);
+#define debug(msg) {} //uart_puts(msg);
 
 enum {
 	STATE_IDLE,

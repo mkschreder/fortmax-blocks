@@ -31,7 +31,7 @@
 #define TEXT_H (8)
 #define TEXTSZ (TEXT_W * TEXT_H)
 
-#define debug(msg) uart_printf("SSD1306: %s\n", msg);
+#define debug(msg) {} //uart_printf("SSD1306: %s\n", msg);
 
 
 enum {

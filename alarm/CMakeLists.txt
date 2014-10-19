@@ -11,15 +11,15 @@ set(TARGET firmware.elf)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
-include_directories("../include/avr/" "../include/avr/c++/" "../kernel/" "../kernel/include")
+include_directories("../include/avr/" "../include/avr/c++/" "../kernel/" "../kernel/include" "../kernel/include/c++")
 link_directories("./")
 
-file(GLOB Project_SOURCES kernel/*.c *.c)
+file(GLOB Project_SOURCES *.c)
 #file(GLOB Project_SOURCES test/hello.c)
-file(GLOB Project_HEADER kernel/*.h *.h)
+file(GLOB Project_HEADER *.h)
 
 set (CMAKE_C_COMPILER "/usr/bin/avr-gcc") 
-set (CMAKE_C_FLAGS "-I. -S -ffunction-sections -Wall -Wstrict-prototypes -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -std=c99 -fdata-sections -O3 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")
+set (CMAKE_C_FLAGS "-I. -ffunction-sections -Wall -Wstrict-prototypes -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -std=c99 -fdata-sections -O3 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")
 
 set (CMAKE_CXX_COMPILER "/usr/bin/avr-g++") 
 set (CMAKE_CXX_FLAGS "-I. -ffunction-sections -fpermissive -fdata-sections -std=c++11 -O2 -Wl,--relax,--gc-sections -DF_CPU=${CPU_FREQ} -mmcu=${CPU}")
@@ -36,7 +36,7 @@ add_custom_target(install
 )
 
 add_custom_target(LIBDRIVERS
-	cmake ../common/ && make -C ../common/ && cp ../common/libdrivers.a .
+	cmake ../kernel/ && make -C ../kernel/ && cp ../kernel/libdrivers.a . && rm -f ${TARGET}
 )
 
 # Executable
