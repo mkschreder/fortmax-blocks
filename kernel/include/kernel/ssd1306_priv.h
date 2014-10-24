@@ -26,7 +26,7 @@ static const uint8_t cmd_init[] PROGMEM = {
 	0x081, 0x09f,		/* set contrast control */
 	0x0d9, 0x011,		/* pre-charge period */
 	0x0db, 0x020,		/* vcomh deselect level */
-	0x021, 0x00, 0x7d, // column addressing mode
+	0x021, 0x00, 0x7f, // (7d for 125 col screen!) column addressing mode
 	0x022, 0x00, 0x07,		/* page addressing mode WRONG: 3 byte cmd! */
 	0x0a4,				/* output ram to display */
 	0x0a6,				/* none inverted normal display mode */
