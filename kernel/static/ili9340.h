@@ -126,6 +126,9 @@ void ili9340_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 void ili9340_setScrollStart(uint16_t start); 
 void ili9340_setScrollArea(uint16_t top, uint16_t bottom);
 
+uint16_t ili9340_width(void);
+uint16_t ili9340_height(void);
+
 #ifdef __cplusplus
 }
 #endif

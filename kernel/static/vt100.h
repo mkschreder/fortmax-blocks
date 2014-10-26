@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-void vt100_init(void);
+void vt100_init(void (*send_response)(char *str)); 
 void vt100_putc(uint8_t ch);
 
 #ifdef __cplusplus

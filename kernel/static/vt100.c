@@ -19,13 +19,22 @@
 
 #include <avr/io.h>
 #include <ctype.h>
+#include <math.h>
+
 #include "vt100.h"
 #include "ili9340.h"
 
-#define VT100_SCREEN_WIDTH 240
-#define VT100_SCREEN_HEIGHT 320
+#define VT100_SCREEN_WIDTH ili9340_width()
+#define VT100_SCREEN_HEIGHT ili9340_height()
 #define VT100_CHAR_WIDTH 6
 #define VT100_CHAR_HEIGHT 8
+#define VT100_HEIGHT (VT100_SCREEN_HEIGHT / VT100_CHAR_HEIGHT - 1)
+#define VT100_WIDTH (VT100_SCREEN_WIDTH / VT100_CHAR_WIDTH - 1)
+
+
+#define KEY_ESC 0x1b
+#define KEY_DEL 0x7f
+#define KEY_BELL 0x07
 
 #define STATE(NAME, TERM, EV, ARG) void NAME(struct vt100 *TERM, uint8_t EV, uint16_t ARG)
 
@@ -44,26 +53,41 @@ enum {
 
 #define MAX_COMMAND_ARGS 4
 static struct vt100 {
-	uint16_t screen_width, screen_height; 
+	//uint16_t screen_width, screen_height;
+	// cursor position on the screen (0, 0) = top left corner. 
 	int16_t cursor_x, cursor_y;
-	int16_t saved_cursor_x, saved_cursor_y; 
+	int16_t saved_cursor_x, saved_cursor_y; // used for cursor save restore
+	// character width and height
 	int8_t char_width, char_height;
+	// colors used for rendering current characters
 	uint16_t back_color, front_color;
-	int16_t scroll; 
+	// the starting y-position of the screen scroll
+	uint16_t scroll; 
 	// command arguments that get parsed as they appear in the terminal
 	uint8_t narg; uint16_t args[MAX_COMMAND_ARGS];
 	// current arg pointer (we use it for parsing) 
 	uint8_t carg;
 	
-	void (*state)(struct vt100 *term, uint8_t ev, uint16_t arg); 
+	void (*state)(struct vt100 *term, uint8_t ev, uint16_t arg);
+	void (*send_response)(char *str);
+	void (*ret_state)(struct vt100 *term, uint8_t ev, uint16_t arg); 
 } term;
 
+#define VT100_CURSOR_X(TERM) (TERM->cursor_x * TERM->char_width)
+
+inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
+	uint16_t y = ((t->cursor_y * t->char_height) + t->scroll); 
+	return y % VT100_SCREEN_HEIGHT;
+}
+
 STATE(_st_idle, term, ev, arg);
-STATE(_st_command, term, ev, arg);
+STATE(_st_esc_sq_bracket, term, ev, arg);
+STATE(_st_esc_question, term, ev, arg);
+STATE(_st_esc_hash, term, ev, arg);
 
 void _vt100_reset(void){
-	term.screen_width = 240;
-  term.screen_height = 320;
+	//term.screen_width = VT100_SCREEN_WIDTH;
+  //term.screen_height = VT100_SCREEN_HEIGHT;
   term.char_height = 8;
   term.char_width = 6;
   term.back_color = 0x0000;
@@ -72,24 +96,72 @@ void _vt100_reset(void){
   term.narg = 0;
   term.scroll = 0; 
   term.state = _st_idle;
+  term.ret_state = 0; 
   ili9340_setFrontColor(term.front_color);
 	ili9340_setBackColor(term.back_color);
+	ili9340_setScrollArea(0, 0); 
 }
 
-void _vt100_moveCursor(struct vt100 *term, int16_t xx, int16_t yy){
-	/*uint16_t x = term->cursor_x * term->char_width;
-	uint16_t y = term->cursor_y * term->char_height;
-
-	// fill current cursor with bg color
-	ili9340_fillRect(x, y, term->char_width, term->char_height, term->back_color);
-*/
-	term->cursor_x = (xx < 0)?0:xx;
-	term->cursor_y = (yy < 0)?0:yy;
 /*
-	x = term->cursor_x * term->char_width;
-	y = term->cursor_y * term->char_height;
+void _vt100_clearChar(struct vt100 *t, uint16_t cx, uint16_t cy){
+	uint16_t y = VT100_CURSOR_Y(t);
+	uint16_t x = VT100_CURSOR_X(t);
+	uint16_t w = VT100_CHAR_WIDTH; 
+	ili9340_fillRect(x, y, w, VT100_CHAR_HEIGHT, 0x0000);
+}*/
 
-	ili9340_fillRect(x, y, term->char_width, term->char_height, term->front_color); */
+void _vt100_clearLines(struct vt100 *t, uint16_t start_line, uint16_t end_line){
+	uint16_t start = ((start_line * t->char_height) + t->scroll) % VT100_SCREEN_HEIGHT;
+	uint16_t h = (end_line - start_line) * VT100_CHAR_HEIGHT;
+	ili9340_fillRect(0, start, VT100_SCREEN_WIDTH, h, 0x0000); 
+}
+
+// scrolls the screen up (lines > 0) or down (lines < 0)
+void _vt100_scroll(struct vt100 *t, int16_t lines){
+	if(!lines) return;
+	
+	int16_t scroll_y = lines * VT100_CHAR_HEIGHT;
+
+	// make scroll wrap around in both directions
+	int16_t new_y = ((int16_t)t->scroll) + scroll_y;
+	if(new_y >= VT100_SCREEN_HEIGHT) new_y -= VT100_SCREEN_HEIGHT;
+	if(new_y < 0) new_y += VT100_SCREEN_HEIGHT - 1; 
+	if(new_y > (VT100_SCREEN_HEIGHT - VT100_CHAR_HEIGHT))
+		new_y = (VT100_SCREEN_HEIGHT - VT100_CHAR_HEIGHT); 
+	t->scroll = new_y;
+	
+	ili9340_setScrollStart(t->scroll);
+}
+
+// moves the cursor relative to current cursor position and scrolls the screen
+void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
+	// calculate how many lines we need to move down or up if x movement goes outside screen
+	int16_t new_x = right_left + term->cursor_x; 
+	if(new_x > VT100_WIDTH){
+		bottom_top += new_x / VT100_WIDTH;
+		term->cursor_x = new_x % VT100_WIDTH - 1; 
+	} else if(new_x < 0){
+		bottom_top += new_x / VT100_WIDTH - 1;
+		term->cursor_x = VT100_WIDTH - (abs(new_x) % VT100_WIDTH) + 1; 
+	} else {
+		term->cursor_x = new_x;
+	}
+	int16_t new_y = bottom_top + term->cursor_y; 
+	int16_t scroll = 0; 
+	if(new_y > VT100_HEIGHT){
+		scroll = new_y / VT100_HEIGHT;
+		// clear the top n lines
+		_vt100_clearLines(term, 0, scroll); 
+		term->cursor_y = VT100_HEIGHT; 
+	} else if(new_y < 0){
+		scroll = new_y / VT100_HEIGHT - 1;
+		// clear the bottom n lines
+		_vt100_clearLines(term, VT100_HEIGHT - scroll, VT100_HEIGHT); 
+		term->cursor_y = 0; 
+	} else {
+		term->cursor_y = new_y;
+	}
+	_vt100_scroll(term, scroll);
 }
 
 void _vt100_drawCursor(struct vt100 *t){
@@ -99,48 +171,27 @@ void _vt100_drawCursor(struct vt100 *t){
 	//ili9340_fillRect(x, y, t->char_width, t->char_height, t->front_color); 
 }
 
-void _vt100_scroll(struct vt100 *t, int16_t lines){
-	t->scroll = (t->scroll + lines) % 320;
-	
-	ili9340_setScrollStart(t->scroll);
-
-	uint16_t x = t->cursor_x * t->char_width;
-	uint16_t y = t->cursor_y * t->char_height;
-	
-	// clear bottom line
-	if(lines > 0) {
-		ili9340_fillRect(x, y - lines, t->screen_width, lines, t->back_color);
-	} else {
-		ili9340_fillRect(x, 0, t->screen_width, lines, t->back_color);
-	}
-}
-
 // sends the character to the display and updates cursor position
 void _vt100_putc(struct vt100 *t, uint8_t ch){
-	uint16_t x = t->cursor_x++ * t->char_width;
-	uint16_t y = t->cursor_y * t->char_height;
-
-	// automatically scroll the display
-	if(y >= VT100_SCREEN_HEIGHT){
-		_vt100_scroll(t, t->char_height);
-		// update coordinate for next character to be rendered
-		
-		// go back one line so we are still on the bottom line of the display
-		t->cursor_y--; y -= t->char_height;
+	if(ch < 0x20 || ch > 0x7e){
+		static const char hex[] = "0123456789abcdef"; 
+		_vt100_putc(t, '0'); 
+		_vt100_putc(t, 'x'); 
+		_vt100_putc(t, hex[((ch & 0xf0) >> 4)]);
+		_vt100_putc(t, hex[(ch & 0x0f)]);
+		return;
 	}
-
-	// check if we have gone off the screen and automatically move the cursor
-	// to next line. We also fill remaining pixels of the line with background color
-	if(x + (t->char_width << 1) > t->screen_width){
-		// fill rest of line
-		ili9340_fillRect(x, y, t->screen_width - x, t->char_height, t->back_color); 
-		t->cursor_x = 0; t->cursor_y++;
-	}
+	
+	// calculate current cursor position in the display ram
+	uint16_t x = t->cursor_x * t->char_width;
+	uint16_t y = ((t->cursor_y * t->char_height) + t->scroll) % VT100_SCREEN_HEIGHT;
 
 	ili9340_setFrontColor(t->front_color);
 	ili9340_setBackColor(t->back_color); 
 	ili9340_drawChar(x, y, ch);
 
+	// move cursor right
+	_vt100_move(t, 1, 0); 
 	_vt100_drawCursor(t); 
 }
 
@@ -154,30 +205,133 @@ STATE(_st_command_arg, term, ev, arg){
 			} else { // no more arguments
 				// go back to command state 
 				term->narg++;
-				term->state = _st_command;
-				// execute command state as well to make sure we catch this char
-				_st_command(term, ev, arg); 
+				if(term->ret_state){
+					term->state = term->ret_state;
+				}
+				else {
+					term->state = _st_idle;
+				}
+				// execute next state as well because we have already consumed a char!
+				term->state(term, ev, arg);
 			}
 			break;
 		}
 	}
 }
 
-STATE(_st_command, term, ev, arg){
+STATE(_st_esc_sq_bracket, term, ev, arg){
 	switch(ev){
 		case EV_CHAR: {
 			if(isdigit(arg)){ // start of an argument
+				term->ret_state = _st_esc_sq_bracket; 
 				_st_command_arg(term, ev, arg);
 				term->state = _st_command_arg;
 			} else if(arg == ';'){ // arg separator. 
-				// skip
-			} else {
+				// skip. And also stay in the command state
+			} else { // otherwise we execute the command and go back to idle
 				switch(arg){
+					/*case 'A': {// move cursor up
+						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
+						_vt100_move(term, 0, -n); 
+						//_vt100_moveCursor(term, term->cursor_x, term->cursor_y - n); 
+						term->state = _st_idle; 
+						break;
+					}
+					case 'B': { // cursor down
+						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
+						_vt100_move(term, 0, n); 
+						//_vt100_moveCursor(term, term->cursor_x, term->cursor_y + n); 
+						term->state = _st_idle; 
+						break;
+					}*/
+					case 'C': { // cursor right
+						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
+						_vt100_move(term, 1, 0); 
+						//_vt100_moveCursor(term, term->cursor_x + n, term->cursor_y); 
+						term->state = _st_idle; 
+						break;
+					}
+					case 'D': { // cursor left
+						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
+						_vt100_move(term, -1, 0);
+						term->state = _st_idle; 
+						//_vt100_moveCursor(term, term->cursor_x - n, term->cursor_y); 
+						break;
+					}
+					case 'K':{// clear line from cursor right/left
+						uint16_t x = term->cursor_x * term->char_width;
+						uint16_t y = VT100_CURSOR_Y(term);
+
+						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
+							// clear to end of line (to \n or to edge?)
+							ili9340_fillRect(x, y, VT100_SCREEN_WIDTH - x, term->char_height, term->back_color);
+						} else if(term->narg == 1 && term->args[0] == 1){
+							// clear from left to current cursor position
+							ili9340_fillRect(0, y, x, term->char_height, term->back_color);
+						} else if(term->narg == 1 && term->args[0] == 2){
+							// clear whole current line
+							ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, term->char_height, term->back_color);
+						}
+						term->state = _st_idle; 
+						break;
+					}
+					case 'J':{// clear screen from cursor up or down
+						uint16_t y = ((term->cursor_y * term->char_height) + term->scroll) % VT100_SCREEN_HEIGHT;
+						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
+							// clear down to the bottom of screen
+							ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, VT100_SCREEN_HEIGHT - y, term->back_color);
+						} else if(term->narg == 1 && term->args[0] == 1){
+							// clear top of screen to current line
+							ili9340_fillRect(0, 0, VT100_SCREEN_WIDTH, y, term->back_color);
+						} else if(term->narg == 1 && term->args[0] == 2){
+							// clear whole screen
+							ili9340_fillRect(0, 0, VT100_SCREEN_WIDTH, VT100_SCREEN_HEIGHT, 0x0000);
+							term->cursor_x = term->cursor_y = 0;
+							//_vt100_moveCursor(term, 0, 0); 
+						}
+						term->state = _st_idle; 
+						break;
+					}
+					
+					case 'c':{ // query device code
+						term->send_response("\e[?1;0c"); 
+						_vt100_reset();
+						term->state = _st_idle; 
+						break; 
+					}
+					case 'x': {
+						term->state = _st_idle;
+						break;
+					}
+					case 's':{// save cursor pos
+						term->saved_cursor_x = term->cursor_x;
+						term->saved_cursor_y = term->cursor_y;
+						term->state = _st_idle; 
+						break;
+					}
+					case 'u':{// restore cursor pos
+						term->cursor_x = term->saved_cursor_x;
+						term->cursor_y = term->saved_cursor_y; 
+						//_vt100_moveCursor(term, term->saved_cursor_x, term->saved_cursor_y);
+						term->state = _st_idle; 
+						break;
+					}
+					case 'h':
+					case 'l': {
+						term->state = _st_idle;
+						break;
+					}
 					case 'f': 
 					case 'H': { // move cursor to position (default 0;0)
-						_vt100_moveCursor(term,
-								(term->narg >= 1)?term->args[0]:0,
-								(term->narg == 2)?term->args[1]:0); 
+						if(term->args[0] > VT100_WIDTH) term->args[0] = VT100_WIDTH;
+						if(term->args[1] > VT100_HEIGHT) term->args[1] = VT100_HEIGHT; 
+						term->cursor_x = (term->narg >= 1)?term->args[0]:0; 
+						term->cursor_y = (term->narg == 2)?term->args[1]:0; 
+						term->state = _st_idle; 
+						break;
+					}
+					case 'g': {
+						term->state = _st_idle;
 						break;
 					}
 					case 'm': { // sets colors. Accepts up to 3 args
@@ -209,74 +363,136 @@ STATE(_st_command, term, ev, arg){
 								ili9340_setBackColor(term->back_color); 
 							}
 						}
+						term->state = _st_idle; 
 						break;
 					}
-					case 'A': {// move cursor up
-						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
-						_vt100_moveCursor(term, term->cursor_x, term->cursor_y - n); 
-						break;
-					}
-					case 'B': { // cursor down
-						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
-						_vt100_moveCursor(term, term->cursor_x, term->cursor_y + n); 
-						break;
-					}
-					case 'C': { // cursor down
-						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
-						_vt100_moveCursor(term, term->cursor_x + n, term->cursor_y); 
-						break;
-					}
-					case 'D': { // cursor down
-						int n = (term->narg > 0)?term->args[term->narg - 1]:1;
-						_vt100_moveCursor(term, term->cursor_x - n, term->cursor_y); 
-						break;
-					}
-					case 's':{// save cursor pos
-						term->saved_cursor_x = term->cursor_x;
-						term->saved_cursor_y = term->cursor_y;
-						break;
-					}
-					case 'u':{// restore cursor pos
-						_vt100_moveCursor(term, term->saved_cursor_x, term->saved_cursor_y);
-						break;
-					}
-					case 'K':{// clear line from cursor right/left
-						uint16_t x = term->cursor_x * term->char_width;
-						uint16_t y = term->cursor_y * term->char_height;
-						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
-							ili9340_fillRect(x, y, term->screen_width - x, term->char_height, term->back_color);
-						} else if(term->narg == 1 && term->args[0] == 1){
-							ili9340_fillRect(0, y, x, term->char_height, term->back_color);
-						} else if(term->narg == 1 && term->args[0] == 2){
-							ili9340_fillRect(0, y, term->screen_width, term->char_height, term->back_color);
-						}
-						break;
-					}
-					case 'J':{// clear screen from cursor up or down
-						uint16_t x = term->cursor_x * term->char_width;
-						uint16_t y = term->cursor_y * term->char_height;
-						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
-							ili9340_fillRect(0, y, term->screen_width, term->screen_height - y, term->back_color);
-						} else if(term->narg == 1 && term->args[0] == 1){
-							ili9340_fillRect(0, 0, term->screen_width, y, term->back_color);
-						} else if(term->narg == 1 && term->args[0] == 2){
-							ili9340_fillRect(0, 0, term->screen_width, term->screen_height, 0x0000);
-							_vt100_moveCursor(term, 0, 0); 
-						}
-						break;
-					}
-					case 'c':{ // reset
-						_vt100_reset();
+					case 'L': // insert lines (args[0] = number of lines)
+					case 'M': // delete lines (args[0] = number of lines)
+						term->state = _st_idle;
 						break; 
+					case 'P': {// delete characters args[0] or 1 in front of cursor
+						// TODO: this needs to correctly delete n chars
+						int n = ((term->narg > 0)?term->args[0]:1);
+						_vt100_move(term, -n, 0);
+						for(int c = 0; c < n; c++){
+							_vt100_putc(term, ' ');
+						}
+						term->state = _st_idle;
+						break;
 					}
+					case '@': // Insert Characters          
+						term->state = _st_idle;
+						break; 
+					case 'r': /* Set scroll region */  
+						/*if(term->narg == 2 && term->args[0] < term->args[1]){
+							
+							ili9340_setScrollArea(term->args[0] * term->char_height,
+								term->args[1] * term->char_height);
+						}*/
+						break;  
+					case 'i': // Printing  
+					case 'y': // self test modes..
 					case '=':{ // argument follows... 
 						//term->state = _st_screen_mode;
+						term->state = _st_idle; 
 						break; 
 					}
+					case '?': // '[?' escape mode
+						term->state = _st_esc_question;
+						break; 
+					default: { // unknown sequence
+						
+						term->state = _st_idle;
+						break;
+					}
 				}
-				term->state = _st_idle; 
 			} // else
 			break;
+		}
+		default: { // switch (ev)
+			// for all other events restore normal mode
+			term->state = _st_idle; 
+		}
+	}
+}
+
+STATE(_st_esc_question, term, ev, arg){
+	// DEC mode commands
+	switch(ev){
+		case EV_CHAR: {
+			if(isdigit(arg)){ // start of an argument
+				term->ret_state = _st_esc_question; 
+				_st_command_arg(term, ev, arg);
+				term->state = _st_command_arg;
+			} else if(arg == ';'){ // arg separator. 
+				// skip. And also stay in the command state
+			} else {
+				switch(arg) {  
+					case 'h':
+						// dec mode: ON (arg[0] = function)
+						 
+					case 'l':
+						// dec mode: OFF (arg[0] = function)
+						
+					case 'i': /* Printing */  
+					case 'n': /* Request printer status */
+						term->state = _st_idle;  
+					default:  
+						term->state = _st_idle; 
+						break;  
+				}
+			}
+		}
+	}
+}
+
+STATE(_st_esc_left_br, term, ev, arg){
+	switch(ev){
+		case EV_CHAR: {
+			switch(arg) {  
+				case 'A':  
+				case 'B':  
+					// translation map command?
+				case '0':  
+				case 'O':
+					// another translation map command?
+					term->state = _st_idle;
+					break;
+			}
+		}
+	}
+}
+
+STATE(_st_esc_right_br, term, ev, arg){
+	switch(ev){
+		case EV_CHAR: {
+			switch(arg) {  
+				case 'A':  
+				case 'B':  
+					// translation map command?
+				case '0':  
+				case 'O':
+					// another translation map command?
+					term->state = _st_idle;
+					break;
+			}
+		}
+	}
+}
+
+STATE(_st_esc_hash, term, ev, arg){
+	switch(ev){
+		case EV_CHAR: {
+			switch(arg) {  
+				case '8': {
+					// self test: fill the screen with 'E'
+					
+					term->state = _st_idle;
+					break;
+				}
+				default:
+					term->state = _st_idle;
+			}
 		}
 	}
 }
@@ -284,33 +500,86 @@ STATE(_st_command, term, ev, arg){
 STATE(_st_escape, term, ev, arg){
 	switch(ev){
 		case EV_CHAR: {
+			#define CLEAR_ARGS \
+				{ term->narg = 0;\
+				for(int c = 0; c < MAX_COMMAND_ARGS; c++)\
+					term->args[c] = 0; }\
+			
 			switch(arg){
 				case '[': { // command
 					// prepare command state and switch to it
-					term->narg = 0;
-					for(int c = 0; c < MAX_COMMAND_ARGS; c++)
-						term->args[c] = 0; // need to reset so we get correct reading!
-					term->state = _st_command;
+					CLEAR_ARGS; 
+					term->state = _st_esc_sq_bracket;
 					break;
 				}
-				case 'D': { // scroll window up one line
-					_vt100_scroll(term, term->char_height);
-					break;
-				}
-				case 'M': { // scroll window down one line
-					_vt100_scroll(term, -term->char_height);
-					break;
-				}
-				case 'E': { // move to next line
-					break;
-				}
-				case '7': { // save cursor vt100 code
+				case '(': /* ESC ( */  
+					CLEAR_ARGS;
+					term->state = _st_esc_left_br;
+					break; 
+				case ')': /* ESC ) */  
+					CLEAR_ARGS;
+					term->state = _st_esc_right_br;
+					break;  
+				case '#': // ESC # 
+					CLEAR_ARGS;
+					term->state = _st_esc_hash;
+					break;  
+				case 'P': //ESC P (DCS, Device Control String)
+					term->state = _st_idle; 
+					break; 
+				case 'D': // Cursor down
+					// move cursor down one line and scroll window if at bottom line
+					_vt100_move(term, 1, 0); 
+					//_vt100_moveCursor(term, term->cursor_x, term->cursor_y++);
+					term->state = _st_idle;
+					break; 
+				case 'M': // Cursor up
+					// move cursor up one line and scroll window if at top line
+					_vt100_move(term, -1, 0); 
+					term->state = _st_idle;
+					break; 
+				case 'E': // CR + NL
+					// same as '\r\n'
+					term->state = _st_idle;
+					break;  
+				case '7': // Save attributes and cursor position  
+				case 's':  
 					term->saved_cursor_x = term->cursor_x;
 					term->saved_cursor_y = term->cursor_y;
-					break;
-				}
-				case '8': { // restore cursor vt100 code
-					_vt100_moveCursor(term, term->saved_cursor_x, term->saved_cursor_y);
+					term->state = _st_idle;
+					break;  
+				case '8': // Restore them  
+				case 'u': 
+					term->cursor_x = term->saved_cursor_x;
+					term->cursor_y = term->saved_cursor_y; 
+					term->state = _st_idle;
+					break; 
+				case '=': // Keypad into applications mode 
+					term->state = _st_idle;
+					break; 
+				case '>': // Keypad into numeric mode   
+					term->state = _st_idle;
+					break;  
+				case 'Z': // Report terminal type 
+					// vt 100 response
+					term->send_response("\033[?1;0c");  
+					// unknown terminal     
+						//out("\033[?c");
+					term->state = _st_idle;
+					break;    
+				case 'c': // Reset terminal to initial state 
+					_vt100_reset();
+					term->state = _st_idle;
+					break;  
+				case 'H': // Set tab in current position 
+				case 'N': // G2 character set for next character only  
+				case 'O': // G3 "               "     
+				case '<': // Exit vt52 mode
+					// ignore
+					term->state = _st_idle;
+					break; 
+				case KEY_ESC: { // marks start of next escape sequence
+					// stay in escape state
 					break;
 				}
 				default: { // unknown sequence - return to normal mode
@@ -318,10 +587,12 @@ STATE(_st_escape, term, ev, arg){
 					break;
 				}
 			}
+			#undef CLEAR_ARGS
 			break;
 		}
 		default: {
-			
+			// for all other events restore normal mode
+			term->state = _st_idle; 
 		}
 	}
 }
@@ -330,27 +601,50 @@ STATE(_st_idle, term, ev, arg){
 	switch(ev){
 		case EV_CHAR: {
 			switch(arg){
-				case 0x1b: {// escape
+				case 5: // AnswerBack for vt100's  
+					term->send_response("X"); // should send SCCS_ID?
+					break;  
+				case '\n': { // new line
+					_vt100_move(term, 0, 1); 
+					//_vt100_moveCursor(term, 0, term->cursor_y + 1);
+					// do scrolling here! 
+					break;
+				}
+				case '\r': { // carrage return (0x0d)
+					term->cursor_x = 0; 
+					//_vt100_moveCursor(term, 0, term->cursor_y); 
+					break;
+				}
+				case '\b': { // backspace 0x08
+					_vt100_move(term, -1, 0); 
+					// backspace does not delete the character! Only moves cursor!
+					//ili9340_drawChar(term->cursor_x * term->char_width,
+					//	term->cursor_y * term->char_height, ' ');
+					break;
+				}
+				case KEY_DEL: { // del - delete character under cursor
+					// Problem: with current implementation, we can't move the rest of line
+					// to the left as is the proper behavior of the delete character
+					// fill the current position with background color
+					_vt100_putc(term, ' ');
+					_vt100_move(term, -1, 0);
+					//_vt100_clearChar(term, term->cursor_x, term->cursor_y); 
+					break;
+				}
+				case '\t': { // tab
+					// tab fills characters on the line until we reach a multiple of tab_stop
+					int tab_stop = 4;
+					int to_put = tab_stop - (term->cursor_x % tab_stop); 
+					while(to_put--) _vt100_putc(term, ' ');
+					break;
+				}
+				case KEY_BELL: { // bell is sent by bash for ex. when doing tab completion
+					// sound the speaker bell?
+					// skip
+					break; 
+				}
+				case KEY_ESC: {// escape
 					term->state = _st_escape;
-					break;
-				}
-				case '\n': {
-					_vt100_moveCursor(term, 0, term->cursor_y + 1); 
-					break;
-				}
-				case '\r': {
-					_vt100_moveCursor(term, 0, term->cursor_y); 
-					break;
-				}
-				case '\b': {
-					if(term->cursor_x == 0){
-						if(term->cursor_y > 0) term->cursor_y--;
-					} else {
-						term->cursor_x--;
-					}
-					ili9340_drawChar(term->cursor_x * term->char_width,
-						term->cursor_y * term->char_height,
-						' ');
 					break;
 				}
 				default: {
@@ -364,7 +658,8 @@ STATE(_st_idle, term, ev, arg){
 	}
 }
 
-void vt100_init(void){
+void vt100_init(void (*send_response)(char *str)){
+  term.send_response = send_response; 
 	_vt100_reset(); 
 }
 

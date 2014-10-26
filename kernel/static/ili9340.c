@@ -385,32 +385,6 @@ void _wr_data16(uint16_t c){
 // than the equivalent code.  Companion function follows.
 #define DELAY 0x80
 
-// Companion code to the above tables.  Reads and issues
-// a series of LCD commands stored in PROGMEM byte array.
-/*
-void Adafruit_ILI9340::commandList(uint8_t *addr) {
-
-  uint8_t  numCommands, numArgs;
-  uint16_t ms;
-
-  numCommands = pgm_read_byte(addr++);   // Number of commands to follow
-  while(numCommands--) {                 // For each command...
-    _wr_command(pgm_read_byte(addr++)); //   Read, issue command
-    numArgs  = pgm_read_byte(addr++);    //   Number of args to follow
-    ms       = numArgs & DELAY;          //   If hibit set, delay follows args
-    numArgs &= ~DELAY;                   //   Mask out delay bit
-    while(numArgs--) {                   //   For each argument...
-      _wr_data(pgm_read_byte(addr++));  //     Read, issue argument
-    }
-
-    if(ms) {
-      ms = pgm_read_byte(addr++); // Read post-command delay time (ms)
-      if(ms == 255) ms = 500;     // If 255, delay for 500 ms
-      _delay_ms(ms);
-    }
-  }
-}*/
-
 void ili9340_init(void) {
 	ILI_DDR |= _BV(RST_PIN);
 	ILI_DDR |= _BV(DC_PIN);
@@ -418,21 +392,8 @@ void ili9340_init(void) {
 	
 	RST_LO; 
 
-	_spi_init(); 
-  //pinMode(_rst, OUTPUT);
-  //digitalWrite(_rst, LOW);
-  //pinMode(_dc, OUTPUT);
-  //pinMode(_cs, OUTPUT);
-  
-  /*if(hwSPI) { // Using hardware SPI
-    SPI.begin();
-    SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
-		SPI.setBitOrder(MSBFIRST);
-    SPI.setDataMode(SPI_MODE0);
-  }*/
-
-  // toggle RST low to reset
-
+	_spi_init();
+	
   RST_HI; 
   _delay_ms(5); 
   RST_LO; 
@@ -568,15 +529,18 @@ void ili9340_setScrollArea(uint16_t top, uint16_t bottom) {
   // Did not pass in VSA as TFA+VSA=BFA must equal 320
 	_wr_command(0x33); // Vertical Scroll definition.
   _wr_data16(top);
-  _wr_data16(320-(top+bottom));
+  _wr_data16(ili9340_height()-(top+bottom));
   _wr_data16(bottom); 
 }
 
-void ili9340_setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1,
- uint16_t y1) {
-
-	y0 = (y0 + term.scroll_start) % term.screen_height;
-	y1 = (y1 + term.scroll_start) % term.screen_height;
+void ili9340_setAddrWindow(int16_t x0, int16_t y0, int16_t x1,
+ int16_t y1) {
+	/*y0 = (y0 - term.scroll_start);
+	y1 = (y1 - term.scroll_start);
+	if(y0 < 0) y0 = term.screen_height - y0;
+	if(y1 < 0) y1 = term.screen_height - y0; */
+	//y0 = (y0 + term.scroll_start) % term.screen_height;
+	//y1 = (y1 + term.scroll_start) % term.screen_height;
 	
   _wr_command(ILI9340_CASET); // Column addr set
   _wr_data(x0 >> 8);
@@ -603,14 +567,23 @@ void ili9340_pushColor(uint16_t color) {
 
 	CS_HI; 
 }
+uint16_t ili9340_width(void){
+	return term.screen_width;
+}
+
+uint16_t ili9340_height(void){
+	return term.screen_height;
+}
 
 // fill a rectangle
 void ili9340_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
   uint16_t color) {
 	struct ili9340 *t = &term;
+
+	//y = (y + term.scroll_start) % term.screen_height;
 	
   // rudimentary clipping (drawChar w/big text requires this)
-  if((x >= t->screen_width) || (y >= t->screen_height)) return;
+  //if((x >= t->screen_width) || (y >= t->screen_height)) return;
   if((x + w - 1) >= t->screen_width)  w = t->screen_width  - x;
   if((y + h - 1) >= t->screen_height) h = t->screen_height - y;
 
@@ -694,8 +667,12 @@ void ili9340_drawFastHLine(int16_t x, int16_t y, int16_t w,
   uint16_t color) {
 	struct ili9340 *t = &term; 
   // Rudimentary clipping
+  
+	//y = (y + term.scroll_start) % term.screen_height;
+	
   if((x >= t->screen_width) || (y >= t->screen_height)) return;
   if((x+w-1) >= t->screen_width)  w = t->screen_width-x;
+  
   ili9340_setAddrWindow(x, y, x+w-1, y);
 
   uint8_t hi = color >> 8, lo = color;

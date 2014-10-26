@@ -227,10 +227,10 @@ LICENSE:
  */
 static volatile unsigned char UART_TxBuf[UART_TX_BUFFER_SIZE];
 static volatile unsigned char UART_RxBuf[UART_RX_BUFFER_SIZE];
-static volatile unsigned char UART_TxHead;
-static volatile unsigned char UART_TxTail;
-static volatile unsigned char UART_RxHead;
-static volatile unsigned char UART_RxTail;
+static volatile int16_t UART_TxHead;
+static volatile int16_t UART_TxTail;
+static volatile int16_t UART_RxHead;
+static volatile int16_t UART_RxTail;
 static volatile unsigned char UART_LastRxError;
 
 #if defined( ATMEGA_USART1 )
@@ -388,6 +388,10 @@ void uart_init(unsigned int baudrate)
 
 }/* uart_init */
 
+uint16_t uart_waiting(void){
+	int16_t l = UART_RxHead - UART_RxTail; 
+	return (l < 0)?(l+64):l;
+}
 
 /*************************************************************************
 Function: uart_getc()
