@@ -118,9 +118,18 @@ inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
 		return t->cursor_y * VT100_CHAR_HEIGHT; 
 	} else {
 		// otherwise we are inside scroll area
-		uint16_t row = t->cursor_y + t->scroll_value;
+		uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row;
+		uint16_t row = t->cursor_y + t->scroll_value; 
+		if(t->cursor_y + t->scroll_value >= t->scroll_end_row)
+			row -= scroll_height; 
+		// if scroll_value == 0: y = t->cursor_y;
+		// if scroll_value == 1 && scroll_start_row == 2 && scroll_end_row == 38:
+		// 		y = t->cursor_y + scroll_value; 
+		//uint16_t row = (t->cursor_y - t->scroll_start_row) % scroll_height; 
+		/*uint16_t skip = t->scroll_value - t->scroll_start_row; 
+		uint16_t row = t->cursor_y + skip;
 		uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row; 
-		row = (row % scroll_height) + t->scroll_start_row;
+		//row = (row % scroll_height);// + t->scroll_start_row;*/
 		return row * VT100_CHAR_HEIGHT; 
 	}
 	/*uint16_t y = 0;
@@ -143,7 +152,7 @@ inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
 }
 
 void _vt100_clearLines(struct vt100 *t, uint16_t start_line, uint16_t end_line){
-	for(int c = start_line; c < end_line; c++){
+	for(int c = start_line; c <= end_line; c++){
 		uint16_t cy = t->cursor_y;
 		t->cursor_y = c; 
 		ili9340_fillRect(0, VT100_CURSOR_Y(t), VT100_SCREEN_WIDTH, VT100_CHAR_HEIGHT, 0x0000);
@@ -162,12 +171,14 @@ void _vt100_scroll(struct vt100 *t, int16_t lines){
 	uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row - 1; 
 	// clearing of lines that we have scrolled up or down
 	if(lines > 0){
+		_vt100_clearLines(t, t->scroll_start_row, t->scroll_start_row+lines-1); 
 		// update the scroll value (wraps around scroll_height)
 		t->scroll_value = (t->scroll_value + lines) % scroll_height;
 		// scrolling up so clear first line of scroll area
 		//uint16_t y = (t->scroll_start_row + t->scroll_value) * VT100_CHAR_HEIGHT; 
 		//ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, lines * VT100_CHAR_HEIGHT, 0x0000);
 	} else if(lines < 0){
+		_vt100_clearLines(t, t->scroll_end_row - lines, t->scroll_end_row - 1); 
 		// make sure that the value wraps down 
 		t->scroll_value = (scroll_height + t->scroll_value + lines) % scroll_height; 
 		// scrolling down - so clear last line of the scroll area
@@ -202,7 +213,7 @@ void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
 	int16_t new_x = right_left + term->cursor_x; 
 	if(new_x > VT100_WIDTH){
 		if(term->flags.cursor_wrap){
-			bottom_top += new_x / VT100_WIDTH;
+			//bottom_top += new_x / VT100_WIDTH;
 			term->cursor_x = new_x % VT100_WIDTH - 1;
 		} else {
 			term->cursor_x = VT100_WIDTH;
@@ -482,7 +493,7 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 							uint16_t bottom_margin = VT100_SCREEN_HEIGHT -
 								(term->scroll_end_row * VT100_CHAR_HEIGHT); 
 							ili9340_setScrollMargins(top_margin, bottom_margin);
-							ili9340_setScrollStart(0); // reset scroll 
+							//ili9340_setScrollStart(0); // reset scroll 
 						}
 						term->state = _st_idle; 
 						break;  
