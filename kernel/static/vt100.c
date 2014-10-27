@@ -67,13 +67,13 @@ static struct vt100 {
 	// cursor position on the screen (0, 0) = top left corner. 
 	int16_t cursor_x, cursor_y;
 	int16_t saved_cursor_x, saved_cursor_y; // used for cursor save restore
-	int16_t top_margin, bottom_margin; 
+	int16_t scroll_start_row, scroll_end_row; 
 	// character width and height
 	int8_t char_width, char_height;
 	// colors used for rendering current characters
 	uint16_t back_color, front_color;
 	// the starting y-position of the screen scroll
-	uint16_t scroll; 
+	uint16_t scroll_value; 
 	// command arguments that get parsed as they appear in the terminal
 	uint8_t narg; uint16_t args[MAX_COMMAND_ARGS];
 	// current arg pointer (we use it for parsing) 
@@ -83,28 +83,6 @@ static struct vt100 {
 	void (*send_response)(char *str);
 	void (*ret_state)(struct vt100 *term, uint8_t ev, uint16_t arg); 
 } term;
-
-#define VT100_CURSOR_X(TERM) (TERM->cursor_x * TERM->char_width)
-
-inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
-	uint16_t y = 0;
-	if(t->cursor_y >= t->top_margin && t->cursor_y < t->bottom_margin){
-		y = t->cursor_y * VT100_CHAR_HEIGHT;
-		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
-			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
-		}
-	} else if(t->cursor_y < t->top_margin){
-		y = (t->cursor_y * VT100_CHAR_HEIGHT);
-	} else if(t->cursor_y >= t->bottom_margin){
-		y = (t->cursor_y * VT100_CHAR_HEIGHT);
-		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
-			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
-		}
-	}
-	//y = ((t->cursor_y - (VT100_HEIGHT - t->bottom_margin)) * VT100_CHAR_HEIGHT);// % VT100_SCREEN_HEIGHT;
-	//y = ((t->cursor_y * VT100_CHAR_HEIGHT) + t->scroll) % VT100_SCREEN_HEIGHT; 
-	return y % VT100_SCREEN_HEIGHT;
-}
 
 STATE(_st_idle, term, ev, arg);
 STATE(_st_esc_sq_bracket, term, ev, arg);
@@ -120,36 +98,86 @@ void _vt100_reset(void){
   term.front_color = 0xffff;
   term.cursor_x = term.cursor_y = term.saved_cursor_x = term.saved_cursor_y = 0;
   term.narg = 0;
-  term.scroll = 0; 
   term.state = _st_idle;
   term.ret_state = 0;
-  term.top_margin = 0;
-  term.bottom_margin = VT100_HEIGHT;
+  term.scroll_value = 0; 
+  term.scroll_start_row = 0;
+  term.scroll_end_row = VT100_HEIGHT + 1; // outside of screen = whole screen scrollable
   term.flags.cursor_wrap = 1; 
   ili9340_setFrontColor(term.front_color);
 	ili9340_setBackColor(term.back_color);
+	ili9340_setScrollMargins(0, 0); 
 	ili9340_setScrollStart(0); 
-	ili9340_setScrollArea(0, 0); 
 }
 
-/*
-void _vt100_clearChar(struct vt100 *t, uint16_t cx, uint16_t cy){
-	uint16_t y = VT100_CURSOR_Y(t);
-	uint16_t x = VT100_CURSOR_X(t);
-	uint16_t w = VT100_CHAR_WIDTH; 
-	ili9340_fillRect(x, y, w, VT100_CHAR_HEIGHT, 0x0000);
-}*/
+#define VT100_CURSOR_X(TERM) (TERM->cursor_x * TERM->char_width)
+
+inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
+	// if within the top or bottom margin areas then normal addressing
+	if(t->cursor_y < t->scroll_start_row || t->cursor_y >= t->scroll_end_row){
+		return t->cursor_y * VT100_CHAR_HEIGHT; 
+	} else {
+		// otherwise we are inside scroll area
+		uint16_t row = t->cursor_y + t->scroll_value;
+		uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row; 
+		row = (row % scroll_height) + t->scroll_start_row;
+		return row * VT100_CHAR_HEIGHT; 
+	}
+	/*uint16_t y = 0;
+	if(t->cursor_y >= t->top_margin && t->cursor_y < t->bottom_margin){
+		y = t->cursor_y * VT100_CHAR_HEIGHT;
+		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
+			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
+		}
+	} else if(t->cursor_y < t->top_margin){
+		y = (t->cursor_y * VT100_CHAR_HEIGHT);
+	} else if(t->cursor_y >= t->bottom_margin){
+		y = (t->cursor_y * VT100_CHAR_HEIGHT);
+		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
+			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
+		}
+	}
+	//y = ((t->cursor_y - (VT100_HEIGHT - t->bottom_margin)) * VT100_CHAR_HEIGHT);// % VT100_SCREEN_HEIGHT;
+	//y = ((t->cursor_y * VT100_CHAR_HEIGHT) + t->scroll) % VT100_SCREEN_HEIGHT; 
+	return y % VT100_SCREEN_HEIGHT;*/
+}
 
 void _vt100_clearLines(struct vt100 *t, uint16_t start_line, uint16_t end_line){
-	uint16_t start = ((start_line * t->char_height) + t->scroll) % VT100_SCREEN_HEIGHT;
+	for(int c = start_line; c < end_line; c++){
+		uint16_t cy = t->cursor_y;
+		t->cursor_y = c; 
+		ili9340_fillRect(0, VT100_CURSOR_Y(t), VT100_SCREEN_WIDTH, VT100_CHAR_HEIGHT, 0x0000);
+		t->cursor_y = cy;
+	}
+	/*uint16_t start = ((start_line * t->char_height) + t->scroll) % VT100_SCREEN_HEIGHT;
 	uint16_t h = (end_line - start_line) * VT100_CHAR_HEIGHT;
-	ili9340_fillRect(0, start, VT100_SCREEN_WIDTH, h, 0x0000); 
+	ili9340_fillRect(0, start, VT100_SCREEN_WIDTH, h, 0x0000); */
 }
 
 // scrolls the scroll region up (lines > 0) or down (lines < 0)
 void _vt100_scroll(struct vt100 *t, int16_t lines){
 	if(!lines) return;
+
+	// get height of scroll area in rows
+	uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row - 1; 
+	// clearing of lines that we have scrolled up or down
+	if(lines > 0){
+		// update the scroll value (wraps around scroll_height)
+		t->scroll_value = (t->scroll_value + lines) % scroll_height;
+		// scrolling up so clear first line of scroll area
+		//uint16_t y = (t->scroll_start_row + t->scroll_value) * VT100_CHAR_HEIGHT; 
+		//ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, lines * VT100_CHAR_HEIGHT, 0x0000);
+	} else if(lines < 0){
+		// make sure that the value wraps down 
+		t->scroll_value = (scroll_height + t->scroll_value + lines) % scroll_height; 
+		// scrolling down - so clear last line of the scroll area
+		//uint16_t y = (t->scroll_start_row + t->scroll_value) * VT100_CHAR_HEIGHT; 
+		//ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, lines * VT100_CHAR_HEIGHT, 0x0000);
+	}
+	uint16_t scroll_start = (t->scroll_start_row + t->scroll_value) * VT100_CHAR_HEIGHT; 
+	ili9340_setScrollStart(scroll_start); 
 	
+	/*
 	int16_t pixels = lines * VT100_CHAR_HEIGHT;
 	uint16_t scroll_min = t->top_margin * VT100_CHAR_HEIGHT;
 	uint16_t scroll_max = t->bottom_margin * VT100_CHAR_HEIGHT;
@@ -165,7 +193,7 @@ void _vt100_scroll(struct vt100 *t, int16_t lines){
 		t->scroll = scroll_min + pixels;
 	}
 	t->scroll = t->scroll % VT100_SCREEN_HEIGHT; 
-	ili9340_setScrollStart(t->scroll);
+	ili9340_setScrollStart(t->scroll);*/
 }
 
 // moves the cursor relative to current cursor position and scrolls the screen
@@ -187,23 +215,28 @@ void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
 	}
 
 	if(bottom_top){
-		int16_t new_y = term->cursor_y + bottom_top; 
-		int16_t scroll = 0;
+		int16_t new_y = term->cursor_y + bottom_top;
+		int16_t to_scroll = 0;
 		// bottom margin 39 marks last line as static on 40 line display
 		// therefore, we would scroll when new cursor has moved to line 39
 		// (or we could use new_y > VT100_HEIGHT here
-		if(new_y > term->bottom_margin){
+		if(new_y >= term->scroll_end_row){
 			//scroll = new_y / VT100_HEIGHT;
-			//term->cursor_y = VT100_HEIGHT; 
-			scroll = new_y - term->bottom_margin; 
-			term->cursor_y = term->bottom_margin; 
-		} else if(new_y < term->top_margin){
-			scroll = new_y / (term->bottom_margin - term->top_margin) - 1;
-			term->cursor_y = term->top_margin; 
+			//term->cursor_y = VT100_HEIGHT;
+			to_scroll = (new_y - term->scroll_end_row)+1; 
+			//scroll = new_y - term->bottom_margin; 
+			//term->cursor_y = term->bottom_margin; 
+		} else if(new_y < term->scroll_start_row){
+			to_scroll = (new_y - term->scroll_start_row); 
+			//scroll = new_y / (term->bottom_margin - term->top_margin) - 1;
+			//term->cursor_y = term->top_margin; 
 		} else {
+			// otherwise we move as normal inside the screen
 			term->cursor_y = new_y;
 		}
-		_vt100_scroll(term, scroll);
+		// place cursor back within the scroll region
+		term->cursor_y = new_y - to_scroll; 
+		_vt100_scroll(term, to_scroll);
 	}
 }
 
@@ -318,18 +351,16 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 						break;
 					}
 					case 'J':{// clear screen from cursor up or down
-						uint16_t y = ((term->cursor_y * term->char_height) + term->scroll) % VT100_SCREEN_HEIGHT;
+						uint16_t y = VT100_CURSOR_Y(term); 
 						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
 							// clear down to the bottom of screen
-							ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, VT100_SCREEN_HEIGHT - y, term->back_color);
+							_vt100_clearLines(term, term->cursor_y, VT100_HEIGHT); 
 						} else if(term->narg == 1 && term->args[0] == 1){
 							// clear top of screen to current line
-							ili9340_fillRect(0, 0, VT100_SCREEN_WIDTH, y, term->back_color);
+							_vt100_clearLines(term, 0, term->cursor_y); 
 						} else if(term->narg == 1 && term->args[0] == 2){
 							// clear whole screen
-							ili9340_fillRect(0, 0, VT100_SCREEN_WIDTH, VT100_SCREEN_HEIGHT, 0x0000);
-							term->cursor_x = term->cursor_y = 0;
-							//_vt100_moveCursor(term, 0, 0); 
+							_vt100_clearLines(term, 0, VT100_HEIGHT); 
 						}
 						term->state = _st_idle; 
 						break;
@@ -439,16 +470,19 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 					case '@': // Insert Characters          
 						term->state = _st_idle;
 						break; 
-					case 'r': // Set scroll region (top and bottom margins) 
+					case 'r': // Set scroll region (top and bottom margins)
+						// the top value is first row of scroll region
+						// the bottom value is the first row of static region after scroll
 						if(term->narg == 2 && term->args[0] < term->args[1]){
 							// [1;40r means scroll region between 8 and 312
 							// bottom margin is 320 - (40 - 1) * 8 = 8 pix
-							term->top_margin = term->args[0] - 1;
-							term->bottom_margin = term->args[1] - 1; 
-							uint16_t top = term->top_margin * VT100_CHAR_HEIGHT;
-							uint16_t bottom = VT100_SCREEN_HEIGHT -
-								(term->bottom_margin * VT100_CHAR_HEIGHT); 
-							ili9340_setScrollArea(top, bottom);
+							term->scroll_start_row = term->args[0] - 1;
+							term->scroll_end_row = term->args[1] - 1; 
+							uint16_t top_margin = term->scroll_start_row * VT100_CHAR_HEIGHT;
+							uint16_t bottom_margin = VT100_SCREEN_HEIGHT -
+								(term->scroll_end_row * VT100_CHAR_HEIGHT); 
+							ili9340_setScrollMargins(top_margin, bottom_margin);
+							ili9340_setScrollStart(0); // reset scroll 
 						}
 						term->state = _st_idle; 
 						break;  

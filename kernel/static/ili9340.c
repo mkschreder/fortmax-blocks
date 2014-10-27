@@ -525,7 +525,7 @@ void ili9340_setScrollStart(uint16_t start){
 }
 
 
-void ili9340_setScrollArea(uint16_t top, uint16_t bottom) {
+void ili9340_setScrollMargins(uint16_t top, uint16_t bottom) {
   // Did not pass in VSA as TFA+VSA=BFA must equal 320
 	_wr_command(0x33); // Vertical Scroll definition.
   _wr_data16(top);
