@@ -25,6 +25,7 @@ extern "C" {
 
 void vt100_init(void (*send_response)(char *str)); 
 void vt100_putc(uint8_t ch);
+void vt100_puts(const char *str);
 
 #ifdef __cplusplus
 }
