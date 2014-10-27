@@ -97,6 +97,9 @@ inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
 		y = (t->cursor_y * VT100_CHAR_HEIGHT);
 	} else if(t->cursor_y >= t->bottom_margin){
 		y = (t->cursor_y * VT100_CHAR_HEIGHT);
+		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
+			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
+		}
 	}
 	//y = ((t->cursor_y - (VT100_HEIGHT - t->bottom_margin)) * VT100_CHAR_HEIGHT);// % VT100_SCREEN_HEIGHT;
 	//y = ((t->cursor_y * VT100_CHAR_HEIGHT) + t->scroll) % VT100_SCREEN_HEIGHT; 
