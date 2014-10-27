@@ -76,7 +76,7 @@ extern "C" {
 
 /** Size of the circular receive buffer, must be power of 2 */
 #ifndef UART_RX_BUFFER_SIZE
-#define UART_RX_BUFFER_SIZE 512
+#define UART_RX_BUFFER_SIZE 1024
 #endif
 /** Size of the circular transmit buffer, must be power of 2 */
 #ifndef UART_TX_BUFFER_SIZE

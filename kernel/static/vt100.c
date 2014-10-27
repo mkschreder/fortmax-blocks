@@ -24,12 +24,6 @@
 #include "vt100.h"
 #include "ili9340.h"
 
-#define VT100_SCREEN_WIDTH ili9340_width()
-#define VT100_SCREEN_HEIGHT ili9340_height()
-#define VT100_CHAR_WIDTH 6
-#define VT100_CHAR_HEIGHT 8
-#define VT100_HEIGHT (VT100_SCREEN_HEIGHT / VT100_CHAR_HEIGHT - 1)
-#define VT100_WIDTH (VT100_SCREEN_WIDTH / VT100_CHAR_WIDTH - 1)
 
 
 #define KEY_ESC 0x1b
@@ -102,8 +96,8 @@ void _vt100_reset(void){
   term.ret_state = 0;
   term.scroll_value = 0; 
   term.scroll_start_row = 0;
-  term.scroll_end_row = VT100_HEIGHT + 1; // outside of screen = whole screen scrollable
-  term.flags.cursor_wrap = 1; 
+  term.scroll_end_row = VT100_HEIGHT; // outside of screen = whole screen scrollable
+  term.flags.cursor_wrap = 0; 
   ili9340_setFrontColor(term.front_color);
 	ili9340_setBackColor(term.back_color);
 	ili9340_setScrollMargins(0, 0); 
@@ -168,7 +162,7 @@ void _vt100_scroll(struct vt100 *t, int16_t lines){
 	if(!lines) return;
 
 	// get height of scroll area in rows
-	uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row - 1; 
+	uint16_t scroll_height = t->scroll_end_row - t->scroll_start_row; 
 	// clearing of lines that we have scrolled up or down
 	if(lines > 0){
 		_vt100_clearLines(t, t->scroll_start_row, t->scroll_start_row+lines-1); 
@@ -213,7 +207,7 @@ void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
 	int16_t new_x = right_left + term->cursor_x; 
 	if(new_x > VT100_WIDTH){
 		if(term->flags.cursor_wrap){
-			//bottom_top += new_x / VT100_WIDTH;
+			bottom_top += new_x / VT100_WIDTH;
 			term->cursor_x = new_x % VT100_WIDTH - 1;
 		} else {
 			term->cursor_x = VT100_WIDTH;
@@ -231,22 +225,24 @@ void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
 		// bottom margin 39 marks last line as static on 40 line display
 		// therefore, we would scroll when new cursor has moved to line 39
 		// (or we could use new_y > VT100_HEIGHT here
+		// NOTE: new_y >= term->scroll_end_row ## to_scroll = (new_y - term->scroll_end_row) +1
 		if(new_y >= term->scroll_end_row){
 			//scroll = new_y / VT100_HEIGHT;
 			//term->cursor_y = VT100_HEIGHT;
-			to_scroll = (new_y - term->scroll_end_row)+1; 
+			to_scroll = (new_y - term->scroll_end_row) + 1; 
+			// place cursor back within the scroll region
+			term->cursor_y = term->scroll_end_row - 1; //new_y - to_scroll; 
 			//scroll = new_y - term->bottom_margin; 
 			//term->cursor_y = term->bottom_margin; 
 		} else if(new_y < term->scroll_start_row){
 			to_scroll = (new_y - term->scroll_start_row); 
+			term->cursor_y = term->scroll_start_row; //new_y - to_scroll; 
 			//scroll = new_y / (term->bottom_margin - term->top_margin) - 1;
 			//term->cursor_y = term->top_margin; 
 		} else {
 			// otherwise we move as normal inside the screen
 			term->cursor_y = new_y;
 		}
-		// place cursor back within the scroll region
-		term->cursor_y = new_y - to_scroll; 
 		_vt100_scroll(term, to_scroll);
 	}
 }
@@ -337,7 +333,7 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 						term->state = _st_idle; 
 						break;
 					}
-					case 'C': { // cursor forward (cursor stops at right margin)
+					case 'C': { // cursor right (cursor stops at right margin)
 						int n = (term->narg > 0)?term->args[0]:1;
 						term->cursor_x += n;
 						if(term->cursor_x > VT100_WIDTH) term->cursor_x = VT100_WIDTH;
@@ -364,10 +360,10 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 					case 'J':{// clear screen from cursor up or down
 						uint16_t y = VT100_CURSOR_Y(term); 
 						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
-							// clear down to the bottom of screen
+							// clear down to the bottom of screen (including cursor)
 							_vt100_clearLines(term, term->cursor_y, VT100_HEIGHT); 
 						} else if(term->narg == 1 && term->args[0] == 1){
-							// clear top of screen to current line
+							// clear top of screen to current line (including cursor)
 							_vt100_clearLines(term, 0, term->cursor_y); 
 						} else if(term->narg == 1 && term->args[0] == 2){
 							// clear whole screen
@@ -382,13 +378,14 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 
 						if(term->narg == 0 || (term->narg == 1 && term->args[0] == 0)){
 							// clear to end of line (to \n or to edge?)
-							ili9340_fillRect(x, y, VT100_SCREEN_WIDTH - x, term->char_height, term->back_color);
+							// including cursor
+							ili9340_fillRect(x, y, VT100_SCREEN_WIDTH - x, VT100_CHAR_HEIGHT, term->back_color);
 						} else if(term->narg == 1 && term->args[0] == 1){
 							// clear from left to current cursor position
-							ili9340_fillRect(0, y, x, term->char_height, term->back_color);
+							ili9340_fillRect(0, y, x + VT100_CHAR_WIDTH, VT100_CHAR_HEIGHT, term->back_color);
 						} else if(term->narg == 1 && term->args[0] == 2){
 							// clear whole current line
-							ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, term->char_height, term->back_color);
+							ili9340_fillRect(0, y, VT100_SCREEN_WIDTH, VT100_CHAR_HEIGHT, term->back_color);
 						}
 						term->state = _st_idle; 
 						break;
@@ -494,6 +491,10 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 								(term->scroll_end_row * VT100_CHAR_HEIGHT); 
 							ili9340_setScrollMargins(top_margin, bottom_margin);
 							//ili9340_setScrollStart(0); // reset scroll 
+						} else {
+							term->scroll_start_row = 0;
+							term->scroll_end_row = VT100_HEIGHT + 1; 
+							ili9340_setScrollMargins(0, 0);
 						}
 						term->state = _st_idle; 
 						break;  
@@ -513,6 +514,7 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 						break;
 					}
 				}
+				//term->state = _st_idle;
 			} // else
 			break;
 		}
@@ -593,11 +595,11 @@ STATE(_st_esc_question, term, ev, arg){
 					}
 					case 'i': /* Printing */  
 					case 'n': /* Request printer status */
-						term->state = _st_idle;  
 					default:  
 						term->state = _st_idle; 
 						break;
 				}
+				term->state = _st_idle;
 			}
 		}
 	}
@@ -618,6 +620,7 @@ STATE(_st_esc_left_br, term, ev, arg){
 				default:
 					term->state = _st_idle;
 			}
+			//term->state = _st_idle;
 		}
 	}
 }
@@ -637,6 +640,7 @@ STATE(_st_esc_right_br, term, ev, arg){
 				default:
 					term->state = _st_idle;
 			}
+			//term->state = _st_idle;
 		}
 	}
 }
@@ -763,17 +767,20 @@ STATE(_st_idle, term, ev, arg){
 	switch(ev){
 		case EV_CHAR: {
 			switch(arg){
+				
 				case 5: // AnswerBack for vt100's  
 					term->send_response("X"); // should send SCCS_ID?
 					break;  
 				case '\n': { // new line
-					_vt100_move(term, 0, 1); 
+					_vt100_move(term, 0, 1);
+					term->cursor_x = 0; 
 					//_vt100_moveCursor(term, 0, term->cursor_y + 1);
 					// do scrolling here! 
 					break;
 				}
 				case '\r': { // carrage return (0x0d)
 					term->cursor_x = 0; 
+					//_vt100_move(term, 0, 1);
 					//_vt100_moveCursor(term, 0, term->cursor_y); 
 					break;
 				}
@@ -826,5 +833,37 @@ void vt100_init(void (*send_response)(char *str)){
 }
 
 void vt100_putc(uint8_t c){
+	/*char *buffer = 0; 
+	switch(c){
+		case KEY_UP:         buffer="\e[A";    break;
+		case KEY_DOWN:       buffer="\e[B";    break;
+		case KEY_RIGHT:      buffer="\e[C";    break;
+		case KEY_LEFT:       buffer="\e[D";    break;
+		case KEY_BACKSPACE:  buffer="\b";      break;
+		case KEY_IC:         buffer="\e[2~";   break;
+		case KEY_DC:         buffer="\e[3~";   break;
+		case KEY_HOME:       buffer="\e[7~";   break;
+		case KEY_END:        buffer="\e[8~";   break;
+		case KEY_PPAGE:      buffer="\e[5~";   break;
+		case KEY_NPAGE:      buffer="\e[6~";   break;
+		case KEY_SUSPEND:    buffer="\x1A";    break;      // ctrl-z
+		case KEY_F(1):       buffer="\e[[A";   break;
+		case KEY_F(2):       buffer="\e[[B";   break;
+		case KEY_F(3):       buffer="\e[[C";   break;
+		case KEY_F(4):       buffer="\e[[D";   break;
+		case KEY_F(5):       buffer="\e[[E";   break;
+		case KEY_F(6):       buffer="\e[17~";  break;
+		case KEY_F(7):       buffer="\e[18~";  break;
+		case KEY_F(8):       buffer="\e[19~";  break;
+		case KEY_F(9):       buffer="\e[20~";  break;
+		case KEY_F(10):      buffer="\e[21~";  break;
+	}
+	if(buffer){
+		while(*buffer){
+			term.state(&term, EV_CHAR, *buffer++);
+		}
+	} else {
+		term.state(&term, EV_CHAR, 0x0000 | c);
+	}*/
 	term.state(&term, EV_CHAR, 0x0000 | c);
 }

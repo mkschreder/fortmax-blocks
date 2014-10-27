@@ -390,7 +390,7 @@ void uart_init(unsigned int baudrate)
 
 uint16_t uart_waiting(void){
 	int16_t l = UART_RxHead - UART_RxTail; 
-	return (l < 0)?(l+64):l;
+	return (l < 0)?(l+UART_RX_BUFFER_SIZE):l;
 }
 
 /*************************************************************************

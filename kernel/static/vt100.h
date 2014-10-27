@@ -23,6 +23,13 @@
 extern "C" {
 #endif
 
+#define VT100_SCREEN_WIDTH ili9340_width()
+#define VT100_SCREEN_HEIGHT ili9340_height()
+#define VT100_CHAR_WIDTH 6
+#define VT100_CHAR_HEIGHT 8
+#define VT100_HEIGHT (VT100_SCREEN_HEIGHT / VT100_CHAR_HEIGHT)
+#define VT100_WIDTH (VT100_SCREEN_WIDTH / VT100_CHAR_WIDTH)
+
 void vt100_init(void (*send_response)(char *str)); 
 void vt100_putc(uint8_t ch);
 void vt100_puts(const char *str);
