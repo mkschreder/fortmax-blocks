@@ -88,14 +88,18 @@ static struct vt100 {
 
 inline uint16_t VT100_CURSOR_Y(struct vt100 *t){
 	uint16_t y = 0;
-	if(t->cursor_y > t->top_margin && t->cursor_y < t->bottom_margin){
-		y = (t->cursor_y - t->top_margin) * VT100_CHAR_HEIGHT + t->scroll;
-	} else if(t->cursor_y <= t->top_margin){
+	if(t->cursor_y >= t->top_margin && t->cursor_y < t->bottom_margin){
+		y = t->cursor_y * VT100_CHAR_HEIGHT;
+		if(t->scroll >= (t->top_margin * VT100_CHAR_HEIGHT)){
+			y += t->scroll - t->top_margin * VT100_CHAR_HEIGHT;
+		}
+	} else if(t->cursor_y < t->top_margin){
 		y = (t->cursor_y * VT100_CHAR_HEIGHT);
 	} else if(t->cursor_y >= t->bottom_margin){
 		y = (t->cursor_y * VT100_CHAR_HEIGHT);
 	}
-	//uint16_t y = ((t->cursor_y * t->char_height) + t->scroll); 
+	//y = ((t->cursor_y - (VT100_HEIGHT - t->bottom_margin)) * VT100_CHAR_HEIGHT);// % VT100_SCREEN_HEIGHT;
+	//y = ((t->cursor_y * VT100_CHAR_HEIGHT) + t->scroll) % VT100_SCREEN_HEIGHT; 
 	return y % VT100_SCREEN_HEIGHT;
 }
 
@@ -149,7 +153,7 @@ void _vt100_scroll(struct vt100 *t, int16_t lines){
 
 	// starting position must be between top and bottom margin
 	// scroll_start == top margin - no scroll at all
-	if(t->scroll > scroll_min){
+	if(t->scroll >= scroll_min){
 		// clear the top n lines
 		ili9340_fillRect(0, t->scroll, VT100_SCREEN_WIDTH, pixels, 0x0000); 
 		t->scroll += pixels;
@@ -157,6 +161,7 @@ void _vt100_scroll(struct vt100 *t, int16_t lines){
 		ili9340_fillRect(0, scroll_min, VT100_SCREEN_WIDTH, pixels, 0x0000); 
 		t->scroll = scroll_min + pixels;
 	}
+	t->scroll = t->scroll % VT100_SCREEN_HEIGHT; 
 	ili9340_setScrollStart(t->scroll);
 }
 
@@ -186,6 +191,7 @@ void _vt100_move(struct vt100 *term, int16_t right_left, int16_t bottom_top){
 		// (or we could use new_y > VT100_HEIGHT here
 		if(new_y > term->bottom_margin){
 			//scroll = new_y / VT100_HEIGHT;
+			//term->cursor_y = VT100_HEIGHT; 
 			scroll = new_y - term->bottom_margin; 
 			term->cursor_y = term->bottom_margin; 
 		} else if(new_y < term->top_margin){
@@ -217,8 +223,8 @@ void _vt100_putc(struct vt100 *t, uint8_t ch){
 	}
 	
 	// calculate current cursor position in the display ram
-	uint16_t x = t->cursor_x * t->char_width;
-	uint16_t y = ((t->cursor_y * t->char_height) + t->scroll) % VT100_SCREEN_HEIGHT;
+	uint16_t x = VT100_CURSOR_X(t);
+	uint16_t y = VT100_CURSOR_Y(t);
 
 	ili9340_setFrontColor(t->front_color);
 	ili9340_setBackColor(t->back_color); 
