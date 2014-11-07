@@ -20,6 +20,10 @@ References:
 #include <avr/io.h>
 #include "mpu6050registers.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //i2c settings
 #define MPU6050_I2CFLEURYPATH "i2cmaster.h" //define the path to i2c fleury lib
 #define MPU6050_I2CINIT 0 //init i2c
@@ -161,6 +165,10 @@ extern void mpu6050_dmpDisable(void);
 extern void mpu6050_getQuaternion(const uint8_t* packet, double *qw, double *qx, double *qy, double *qz);
 extern void mpu6050_getRollPitchYaw(double qw, double qx, double qy, double qz, double *roll, double *pitch, double *yaw);
 extern uint8_t mpu6050_getQuaternionWait(double *qw, double *qx, double *qy, double *qz);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

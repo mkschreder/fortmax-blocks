@@ -17,6 +17,11 @@ Please refer to LICENSE file for licensing information.
 
 #include <avr/io.h>
 
+// commands
+#define SPI_CMD_SET_PIN 0x1000
+#define SPI_CMD_SENDRECEIVE 0x2000
+#define SPI_PIN_VALUE_BIT 0x0800
+
 //spi ports
 #define SPI_DDR DDRB
 #define SPI_PORT PORTB

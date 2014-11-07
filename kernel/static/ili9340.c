@@ -1,23 +1,24 @@
 /**
-	This file is part of FORTMAX kernel.
+	This file is part of FORTMAX.
 
-	FORTMAX kernel is free software: you can redistribute it and/or modify
+	FORTMAX is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	FORTMAX kernel is distributed in the hope that it will be useful,
+	FORTMAX is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with FORTMAX kernel.  If not, see <http://www.gnu.org/licenses/>.
+	along with FORTMAX.  If not, see <http://www.gnu.org/licenses/>.
 
 	Copyright: Martin K. Schröder (info@fortmax.se) 2014
 */
 
 #include "ili9340.h"
+#include "spi.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <limits.h>
+#include <math.h>
 
 #define SPI_DDR DDRB
 #define SPI_PORT PORTB
@@ -40,9 +42,9 @@
 
 #define ILI_PORT PORTB
 #define ILI_DDR DDRB
-#define CS_PIN SPI_SS
-#define RST_PIN PB1
-#define DC_PIN PB0
+#define CS_PIN PB0
+#define RST_PIN SPI_SS
+#define DC_PIN PB1
 
 #define _SB(port, pin) {port |= _BV(pin);}
 #define _RB(port, pin) {port &= ~_BV(pin);}
@@ -321,7 +323,7 @@ static struct ili9340 {
 	uint16_t scroll_start; 
 } term;
 
-
+/*
 void _spi_init(void) {
     SPI_DDR &= ~((1<<SPI_MISO)); //input
     SPI_DDR |= ((1<<SPI_MOSI) | (1<<SPI_SS) | (1<<SPI_SCK)); //output
@@ -340,43 +342,39 @@ void _spi_init(void) {
     SPSR = (1<<SPI2X); // Double SPI Speed Bit
 }
 
-void _spi_write(uint8_t c) {
+uint8_t spi_writereadbyte(uint8_t c) {
 	SPDR = c;
 	while(!(SPSR & _BV(SPIF)));
+	return SPDR; 
 }
-
+*/
 
 void _wr_command(uint8_t c) {
 	DC_LO;
-	CS_LO; 
-  //CLEAR_BIT(dcport, dcpinmask);
-  //digitalWrite(_dc, LOW);
-  //CLEAR_BIT(clkport, clkpinmask);
-  //digitalWrite(_sclk, LOW);
-  //CLEAR_BIT(csport, cspinmask);
-  //digitalWrite(_cs, LOW);
-
-  _spi_write(c);
+	CS_LO;
+	
+  spi_writereadbyte(c);
 
 	CS_HI; 
-  //SET_BIT(csport, cspinmask);
-  //digitalWrite(_cs, HIGH);
 }
 
 
-void _wr_data(uint8_t c) {
+uint8_t _wr_data(uint8_t c) {
 	DC_HI; 
   CS_LO; 
-  _spi_write(c);
-	CS_HI; 
+  uint8_t r = spi_writereadbyte(c);
+	CS_HI;
+	return r; 
 } 
 
-void _wr_data16(uint16_t c){
+uint16_t _wr_data16(uint16_t c){
 	DC_HI; 
   CS_LO; 
-  _spi_write(c >> 8);
-  _spi_write(c & 0xff); 
+  uint16_t r = spi_writereadbyte(c >> 8);
+  r <<= 8;
+  r |= spi_writereadbyte(c & 0xff); 
 	CS_HI;
+	return r; 
 }
 // Rather than a bazillion _wr_command() and _wr_data() calls, screen
 // initialization commands and arguments are organized in these tables
@@ -392,7 +390,7 @@ void ili9340_init(void) {
 	
 	RST_LO; 
 
-	_spi_init();
+	spi_init();
 	
   RST_HI; 
   _delay_ms(5); 
@@ -529,20 +527,12 @@ void ili9340_setScrollMargins(uint16_t top, uint16_t bottom) {
   // Did not pass in VSA as TFA+VSA=BFA must equal 320
 	_wr_command(0x33); // Vertical Scroll definition.
   _wr_data16(top);
-  _wr_data16(ili9340_height()-(top+bottom));
+  _wr_data16(320-(top+bottom));
   _wr_data16(bottom); 
 }
 
-void ili9340_setAddrWindow(int16_t x0, int16_t y0, int16_t x1,
- int16_t y1) {
-	/*y0 = (y0 - term.scroll_start);
-	y1 = (y1 - term.scroll_start);
-	if(y0 < 0) y0 = term.screen_height - y0;
-	if(y1 < 0) y1 = term.screen_height - y0; */
-	//y0 = (y0 + term.scroll_start) % term.screen_height;
-	//y1 = (y1 + term.scroll_start) % term.screen_height;
-	
-  _wr_command(ILI9340_CASET); // Column addr set
+void _ili9340_setAddrWindow(int16_t x0, int16_t y0, int16_t x1, int16_t y1){
+	_wr_command(ILI9340_CASET); // Column addr set
   _wr_data(x0 >> 8);
   _wr_data(x0 & 0xFF);     // XSTART 
   _wr_data(x1 >> 8);
@@ -553,17 +543,68 @@ void ili9340_setAddrWindow(int16_t x0, int16_t y0, int16_t x1,
   _wr_data(y0);     // YSTART
   _wr_data(y1>>8);
   _wr_data(y1);     // YEND
+}
 
+void ili9340_setAddrWindow_WR(int16_t x0, int16_t y0, int16_t x1,
+ int16_t y1) {
+  _ili9340_setAddrWindow(x0, y0, x1, y1); 
   _wr_command(ILI9340_RAMWR); // write to RAM
 }
 
+void ili9340_readRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t *data){
+  _ili9340_setAddrWindow(x, y, x + w - 1, y + h - 1);
+  //_wr_command(ILI9340_RAMRD); // read RAM
+  CS_LO;
+  DC_LO
+	
+	spi_writereadbyte(ILI9340_RAMRD);
+	//spi_writereadbyte(0);
+	
+	DC_HI;
+	
+	spi_writereadbyte(0);
+	
+  uint16_t cnt = w * h;
+  for(uint16_t c = 0; c < cnt; c++){
+		// DAMN! this took a while to figure out :)
+		// The data is one byte per color! NOT packed!
+		data[c] = RGB16(spi_writereadbyte(0), spi_writereadbyte(0), spi_writereadbyte(0));
+	}
+
+	CS_HI; 
+}
+
+void ili9340_writeRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t *data){
+  _ili9340_setAddrWindow(x, y, x + w - 1, y + h - 1);
+  /*_wr_command(ILI9340_RAMWR); // read RAM
+  
+	DC_HI; 
+	CS_LO; 
+	*/
+	CS_LO;
+  DC_LO
+	
+	spi_writereadbyte(ILI9340_RAMWR);
+	//spi_writereadbyte(0);
+	
+	DC_HI;
+	
+  uint16_t cnt = w * h;
+  for(uint16_t c = 0; c < cnt; c++){
+		uint16_t d = *data++;
+		spi_writereadbyte(d >> 8);
+		spi_writereadbyte(d);
+	}
+
+	CS_HI; 
+}
 
 void ili9340_pushColor(uint16_t color) {
   DC_HI;
   CS_LO; 
 
-  _spi_write(color >> 8);
-  _spi_write(color);
+  spi_writereadbyte(color >> 8);
+  spi_writereadbyte(color);
 
 	CS_HI; 
 }
@@ -587,20 +628,56 @@ void ili9340_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
   if((x + w - 1) >= t->screen_width)  w = t->screen_width  - x;
   if((y + h - 1) >= t->screen_height) h = t->screen_height - y;
 
-  ili9340_setAddrWindow(x, y, x+w-1, y+h-1);
+	ili9340_setAddrWindow_WR(
+		x, 					y,
+		x + w - 1, 	y + h - 1);
 
-  uint8_t hi = color >> 8, lo = color;
+	uint8_t hi = color >> 8, lo = color;
 
-  DC_HI; 
-  CS_LO; 
-  
-  for(y=h; y>0; y--) {
-    for(x=w; x>0; x--) {
-      _spi_write(hi);
-      _spi_write(lo);
-    }
+	DC_HI; 
+	CS_LO; 
+	
+	for(y=h; y>0; y--) {
+		for(x=w; x>0; x--) {
+			spi_writereadbyte(hi);
+			spi_writereadbyte(lo);
+		}
+	}
+	CS_HI;
+}
+
+void ili9340_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t col){
+	/*if(x0 == x1) {
+		ili9340_drawFastVLine(x0, y0, y1 - y0, col); 
+		return; 
+	} else if(y0 == y1){
+		ili9340_drawFastHLine(x0, y0, x1 - x0, col); 
+		return; 
+	}*/
+	
+  int dx = abs(x1-x0), sx = x0<x1 ? 1 : -1;
+  int dy = abs(y1-y0), sy = y0<y1 ? 1 : -1; 
+  int err = (dx>dy ? dx : -dy)/2, e2;
+	
+	uint8_t hi = col >> 8, lo = col;
+	
+  for(;;){
+		ili9340_setAddrWindow_WR(x0, y0, x0, y0);
+
+		DC_HI; 
+		CS_LO; 
+		
+		spi_writereadbyte(hi);
+		spi_writereadbyte(lo);
+		
+		CS_HI;
+		
+    if (x0==x1 && y0==y1) break;
+    e2 = err;
+    if (e2 >-dx) { err -= dy; x0 += sx; }
+    if (e2 < dy) { err += dx; y0 += sy; }
   }
-  CS_HI; 
+  
 }
 
 void ili9340_setBackColor(uint16_t col){
@@ -619,7 +696,7 @@ void ili9340_setFrontColor(uint16_t col){
 void ili9340_drawChar(uint16_t x, uint16_t y, uint8_t ch){
 	struct ili9340 *t = &term;
 	
-	ili9340_setAddrWindow(x, y, x+t->char_width-1, y + t->char_height);
+	ili9340_setAddrWindow_WR(x, y, x+t->char_width-1, y + t->char_height);
 
 	DC_HI;
 	CS_LO;
@@ -635,13 +712,13 @@ void ili9340_drawChar(uint16_t x, uint16_t y, uint8_t ch){
 			uint16_t pix = t->back_color;
 			if(_buf[j] & _BV(b))
 				pix = t->front_color;
-			_spi_write(pix >> 8);
-			_spi_write(pix);
+			spi_writereadbyte(pix >> 8);
+			spi_writereadbyte(pix);
 		}
 		
 		// draw one more separator pixel
-		_spi_write(t->back_color >> 8);
-		_spi_write(t->back_color);
+		spi_writereadbyte(t->back_color >> 8);
+		spi_writereadbyte(t->back_color);
 	}
 	CS_HI;
 }
@@ -652,15 +729,32 @@ void ili9340_drawString(uint16_t x, uint16_t y, const char *text){
 	struct ili9340 *t = &term;
 	
 	for(const char *_ch = text; *_ch; _ch++){
-		DDRD |= _BV(5);
-		PORTD |= _BV(5); 
+		//DDRD |= _BV(5);
+		//PORTD |= _BV(5); 
 		if(!*_ch) break;
 		
 		ili9340_drawChar(x, y, *_ch);
 		x += t->char_width; 
-		PORTD &= ~_BV(5); 
+		//PORTD &= ~_BV(5); 
 	}
 
+}
+
+void ili9340_drawSprite(uint16_t x, uint16_t y, const uint8_t *sprite, const uint16_t *palette){
+
+  ili9340_setAddrWindow_WR(x, y, x + 8 - 1, y + 8 - 1);
+
+	DC_HI;
+  CS_LO; 
+
+  for(int c = 0; c < 64; c++){
+		uint8_t idx = pgm_read_byte(sprite + c);
+		uint16_t pix = pgm_read_word(palette + idx); 
+		spi_writereadbyte(pix >> 8);
+    spi_writereadbyte(pix);
+  }
+  
+  CS_HI; 
 }
 
 void ili9340_drawFastHLine(int16_t x, int16_t y, int16_t w,
@@ -673,16 +767,23 @@ void ili9340_drawFastHLine(int16_t x, int16_t y, int16_t w,
   if((x >= t->screen_width) || (y >= t->screen_height)) return;
   if((x+w-1) >= t->screen_width)  w = t->screen_width-x;
   
-  ili9340_setAddrWindow(x, y, x+w-1, y);
+  ili9340_setAddrWindow_WR(x, y, x+w-1, y);
 
   uint8_t hi = color >> 8, lo = color;
   DC_HI;
   CS_LO; 
   while (w--) {
-    _spi_write(hi);
-    _spi_write(lo);
+    spi_writereadbyte(hi);
+    spi_writereadbyte(lo);
   }
   CS_HI; 
+}
+
+
+void ili9340_drawFastVLine(int16_t x, int16_t y, int16_t h,
+  uint16_t color) {
+	
+	ili9340_fillRect((h > 0)?x:(x + h), y, 1, (h > 0)?(x + h):x, color); 
 }
 
 void ili9340_setRotation(uint8_t m) {

@@ -15,6 +15,10 @@ References:
 #ifndef L3G4200D_H_
 #define L3G4200D_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //definitions
 #define L3G4200D_ADDR (0x69<<1) //device address
 
@@ -94,5 +98,9 @@ extern void l3g4200d_getrawdata(int16_t *gxraw, int16_t *gyraw, int16_t *gzraw);
 extern void l3g4200d_getdata(double* gx, double* gy, double* gz);
 extern void l3g4200d_settemperatureref(void);
 extern int8_t l3g4200d_gettemperaturediff(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

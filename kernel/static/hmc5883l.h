@@ -15,6 +15,10 @@ References:
 #ifndef HMC5883L_H_
 #define HMC5883L_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //definitions
 #define HMC5883L_ADDR (0x1E<<1) //device address
 
@@ -67,5 +71,9 @@ References:
 extern void hmc5883l_init(void);
 extern void hmc5883l_getrawdata(int16_t *mxraw, int16_t *myraw, int16_t *mzraw);
 extern void hmc5883l_getdata(double *mx, double *my, double *mz);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

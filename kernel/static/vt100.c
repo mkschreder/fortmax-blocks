@@ -1,18 +1,18 @@
 /**
-	This file is part of FORTMAX kernel.
+	This file is part of FORTMAX.
 
-	FORTMAX kernel is free software: you can redistribute it and/or modify
+	FORTMAX is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	FORTMAX kernel is distributed in the hope that it will be useful,
+	FORTMAX is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with FORTMAX kernel.  If not, see <http://www.gnu.org/licenses/>.
+	along with FORTMAX.  If not, see <http://www.gnu.org/licenses/>.
 
 	Copyright: Martin K. Schröder (info@fortmax.se) 2014
 */
@@ -24,14 +24,11 @@
 #include "vt100.h"
 #include "ili9340.h"
 
-
-
 #define KEY_ESC 0x1b
 #define KEY_DEL 0x7f
 #define KEY_BELL 0x07
 
 #define STATE(NAME, TERM, EV, ARG) void NAME(struct vt100 *TERM, uint8_t EV, uint16_t ARG)
-
 
 // states 
 enum {
@@ -53,7 +50,8 @@ static struct vt100 {
 			// 0 = cursor remains on last column when it gets there
 			// 1 = lines wrap after last column to next line
 			uint8_t cursor_wrap : 1; 
-			uint8_t scroll_mode : 1; 
+			uint8_t scroll_mode : 1;
+			uint8_t origin_mode : 1; 
 		}; 
 	} flags;
 	
@@ -97,10 +95,19 @@ void _vt100_reset(void){
   term.scroll_value = 0; 
   term.scroll_start_row = 0;
   term.scroll_end_row = VT100_HEIGHT; // outside of screen = whole screen scrollable
-  term.flags.cursor_wrap = 0; 
+  term.flags.cursor_wrap = 0;
+  term.flags.origin_mode = 0; 
   ili9340_setFrontColor(term.front_color);
 	ili9340_setBackColor(term.back_color);
 	ili9340_setScrollMargins(0, 0); 
+	ili9340_setScrollStart(0); 
+}
+
+void _vt100_resetScroll(void){
+	term.scroll_start_row = 0;
+	term.scroll_end_row = VT100_HEIGHT;
+	term.scroll_value = 0; 
+	ili9340_setScrollMargins(0, 0);
 	ili9340_setScrollStart(0); 
 }
 
@@ -351,7 +358,13 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 					case 'H': { // move cursor to position (default 0;0)
 						// cursor stops at respective margins
 						term->cursor_x = (term->narg >= 1)?(term->args[1]-1):0; 
-						term->cursor_y = (term->narg == 2)?(term->args[0]-1):0; 
+						term->cursor_y = (term->narg == 2)?(term->args[0]-1):0;
+						if(term->flags.origin_mode) {
+							term->cursor_y += term->scroll_start_row;
+							if(term->cursor_y >= term->scroll_end_row){
+								term->cursor_y = term->scroll_end_row - 1;
+							}
+						}
 						if(term->cursor_x > VT100_WIDTH) term->cursor_x = VT100_WIDTH;
 						if(term->cursor_y > VT100_HEIGHT) term->cursor_y = VT100_HEIGHT; 
 						term->state = _st_idle; 
@@ -367,7 +380,9 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 							_vt100_clearLines(term, 0, term->cursor_y); 
 						} else if(term->narg == 1 && term->args[0] == 2){
 							// clear whole screen
-							_vt100_clearLines(term, 0, VT100_HEIGHT); 
+							_vt100_clearLines(term, 0, VT100_HEIGHT);
+							// reset scroll value
+							_vt100_resetScroll(); 
 						}
 						term->state = _st_idle; 
 						break;
@@ -492,9 +507,7 @@ STATE(_st_esc_sq_bracket, term, ev, arg){
 							ili9340_setScrollMargins(top_margin, bottom_margin);
 							//ili9340_setScrollStart(0); // reset scroll 
 						} else {
-							term->scroll_start_row = 0;
-							term->scroll_end_row = VT100_HEIGHT + 1; 
-							ili9340_setScrollMargins(0, 0);
+							_vt100_resetScroll(); 
 						}
 						term->state = _st_idle; 
 						break;  
@@ -570,6 +583,7 @@ STATE(_st_esc_question, term, ev, arg){
 							case 6: {
 								// h = cursor relative to scroll region
 								// l = cursor independent of scroll region
+								term->flags.origin_mode = (arg == 'h')?1:0; 
 								break;
 							}
 							case 7: {

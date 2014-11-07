@@ -21,6 +21,10 @@ Notes:
 #include <stdio.h>
 #include <avr/io.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BMP085_ADDR (0x77<<1) //0x77 default I2C address
 
 #define BMP085_I2CFLEURYPATH "i2cmaster.h" //define the path to i2c fleury lib
@@ -67,5 +71,7 @@ void bmp085_init(void);
 long bmp085_getpressure(void);
 int16_t bmp085_getaltitude(void);
 int16_t bmp085_gettemperature(void);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

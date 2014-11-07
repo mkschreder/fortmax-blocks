@@ -76,7 +76,7 @@ extern "C" {
 
 /** Size of the circular receive buffer, must be power of 2 */
 #ifndef UART_RX_BUFFER_SIZE
-#define UART_RX_BUFFER_SIZE 1024
+#define UART_RX_BUFFER_SIZE 32
 #endif
 /** Size of the circular transmit buffer, must be power of 2 */
 #ifndef UART_TX_BUFFER_SIZE
@@ -97,6 +97,15 @@ extern "C" {
 #define UART_NO_DATA          0x0100              /* no receive data available   */
 
 
+struct uart {
+	volatile unsigned char UART_TxBuf[UART_TX_BUFFER_SIZE];
+	volatile unsigned char UART_RxBuf[UART_RX_BUFFER_SIZE];
+	volatile int16_t UART_TxHead;
+	volatile int16_t UART_TxTail;
+	volatile int16_t UART_RxHead;
+	volatile int16_t UART_RxTail;
+	volatile unsigned char UART_LastRxError;
+};
 /*
 ** function prototypes
 */
@@ -106,7 +115,7 @@ extern "C" {
    @param   baudrate Specify baudrate using macro UART_BAUD_SELECT()
    @return  none
 */
-extern void uart_init(unsigned int baudrate);
+extern void uart_init(struct uart *uart, unsigned int baudrate);
 
 
 /**

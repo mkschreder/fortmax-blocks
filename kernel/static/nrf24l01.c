@@ -20,6 +20,9 @@ Please refer to LICENSE file for licensing information.
 //include spi library functions
 #include NRF24L01_SPIPATH
 
+static volatile uint8_t *nrf_port = 0, *nrf_ddr = 0;
+static uint8_t nrf_ce_pin = 0, nrf_cs_pin = 0;
+
 //address variables
 static uint8_t nrf24l01_addr0[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP0;
 static uint8_t nrf24l01_addr1[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP1;
@@ -168,10 +171,7 @@ void nrf24l01_setTX(void) {
 	_delay_us(150); //wait for the radio to power up
 }
 
-#if NRF24L01_PRINTENABLE == 1
 /*
- * print info
- */
 
 extern void uart_printf(const char *fmt, ...); 
 void nrf24l01_printinfo(void(*prints)(const char *), void(*printc)(unsigned char data)) {
@@ -203,17 +203,13 @@ void nrf24l01_printinfo(void(*prints)(const char *), void(*printc)(unsigned char
 	r = nrf24l01_readregister(NRF24L01_REG_OBSERVE_TX);
 	uart_printf("OBSERVE_TX: RT_COUNT: %d, LOST_COUNT: %d\n", r & 0xf, (r >> 4) & 0xf);
 	
-	/*sprintf(buff,"STATUS: %02X\r\n", nrf24l01_getstatus()); prints(buff);
-	sprintf(buff,"CONFIG: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_CONFIG)); prints(buff);
-	sprintf(buff,"RF_CH: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_CH)); prints(buff);
-	sprintf(buff,"RF_SETUP: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_SETUP)); prints(buff);
-	sprintf(buff,"EN_AA: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_AA)); prints(buff);
-	sprintf(buff,"EN_RXADDR: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_RXADDR)); prints(buff);
-	sprintf(buff,"OBSERVE_TX: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_OBSERVE_TX)); prints(buff);
-	prints("\r\n");*/
 }
-#endif
+*/
 
+void nrf24l01_powerdown(void){
+	//nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~(1<<NRF24L01_REG_PWR_UP));
+	//_delay_ms(10); 
+}
 
 /*
  * get status register
@@ -258,6 +254,9 @@ void nrf24l01_read(uint8_t *data) {
 	//handle ack payload receipt
 	if (nrf24l01_getstatus() & (1<<NRF24L01_REG_TX_DS))
 		nrf24l01_writeregister(NRF24L01_REG_STATUS, (1<<NRF24L01_REG_TX_DS));
+
+	//power down
+	nrf24l01_powerdown(); 
 }
 
 /*
@@ -297,8 +296,8 @@ uint8_t nrf24l01_write(uint8_t *data) {
 	nrf24l01_writeregister(NRF24L01_REG_RF_CH, NRF24L01_CH);
 
 	//power down
-	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~(1<<NRF24L01_REG_PWR_UP));
-
+	nrf24l01_powerdown();
+	
 	//set rx mode
 	nrf24l01_setRX();
 
@@ -339,7 +338,6 @@ void nrf24l01_setdatarate(void) {
   } else {
     if (NRF24L01_RF24_SPEED == NRF24L01_RF24_SPEED_2MBPS) {
     	setup |= (1<<NRF24L01_REG_RF_DR_HIGH);
-    } else if (NRF24L01_RF24_SPEED == NRF24L01_RF24_SPEED_2MBPS) {
     } else {
     	//default is 1Mbps
     }
@@ -371,24 +369,29 @@ void nrf24l01_setcrclength(void) {
 /*
  * init nrf24l01
  */
-void nrf24l01_init(void) {
+void nrf24l01_init(volatile uint8_t *port, volatile uint8_t *ddr, uint8_t ce_pin, uint8_t cs_pin) {
+	nrf_ddr = ddr;
+	nrf_port = port;
+	nrf_ce_pin = ce_pin;
+	nrf_cs_pin = cs_pin;
+	
 	//setup port
 	NRF24L01_DDR |= (1<<NRF24L01_CSN); //output
 	NRF24L01_DDR |= (1<<NRF24L01_CE); //output
 
-    spi_init(); //init spi
+	spi_init(); //init spi
 
-    nrf24l01_CElo; //low CE
-    nrf24l01_CSNhi; //high CSN
+	nrf24l01_CElo; //low CE
+	nrf24l01_CSNhi; //high CSN
 
-    _delay_ms(5); //wait for the radio to init
+	_delay_ms(5); //wait for the radio to init
 
-    nrf24l01_setpalevel(); //set power level
-    nrf24l01_setdatarate(); //set data rate
-    nrf24l01_setcrclength(); //set crc length
-    nrf24l01_writeregister(NRF24L01_REG_SETUP_RETR, NRF24L01_RETR); // set retries
-    nrf24l01_writeregister(NRF24L01_REG_DYNPD, 0); //disable dynamic payloads
-    nrf24l01_writeregister(NRF24L01_REG_RF_CH, NRF24L01_CH); //set RF channel
+	nrf24l01_setpalevel(); //set power level
+	nrf24l01_setdatarate(); //set data rate
+	nrf24l01_setcrclength(); //set crc length
+	nrf24l01_writeregister(NRF24L01_REG_SETUP_RETR, NRF24L01_RETR); // set retries
+	nrf24l01_writeregister(NRF24L01_REG_DYNPD, 0); //disable dynamic payloads
+	nrf24l01_writeregister(NRF24L01_REG_RF_CH, NRF24L01_CH); //set RF channel
 
 	//payload size
 	#if NRF24L01_ENABLEDP0 == 1
@@ -463,3 +466,62 @@ void nrf24l01_init(void) {
 	nrf24l01_setRX();
 }
 
+
+void nrf24l01_scan(uint8_t iterations, uint8_t result[NRF24L01_MAX_CHANNEL]){
+	//disable();
+	uint8_t channel[NRF24L01_MAX_CHANNEL];
+	char grey[] PROGMEM = "0123456789"; 
+	//char grey[] = " .:-=+*aRW";
+
+	//nrf24l01_powerdown();
+
+	//memset(result, ' ', NRF24L01_MAX_CHANNEL);
+	
+  for( int j=0 ; j < iterations  ; j++)
+  {
+    for( int i=0 ; i < NRF24L01_MAX_CHANNEL ; i++)
+    {
+      // select a new channel
+      nrf24l01_writeregister(NRF24L01_REG_RF_CH, i); //set RF channel
+
+      // switch on RX
+      nrf24l01_setRX(); 
+      
+      // wait enough for RX-things to settle
+      _delay_us(40);
+      
+      // this is actually the point where the RPD-flag
+      // is set, when CE goes low
+      //disable();
+      //nrf24l01_powerdown();
+      
+      // read out RPD flag; set to 1 if 
+      // received power > -64dBm
+      if( nrf24l01_readregister(NRF24L01_REG_CD) > 0 ) channel[i]++;
+    }
+  }
+  uint32_t norm = 0;
+  
+  // find the maximal count in channel array
+  for( int i=0 ; i < NRF24L01_MAX_CHANNEL ; i++)
+    if( channel[i] > norm ) norm = channel[i];
+    
+  // compute normalized values
+  for( int i=0 ; i < NRF24L01_MAX_CHANNEL ; i++){
+    int pos;
+    
+    // calculate grey value position
+    if( norm!=0 ) pos = (channel[i]*10)/norm;
+    else          pos = 0;
+    
+    // boost low values
+    if( pos==0 && channel[i]>0 ) pos++;
+    
+    // clamp large values
+    if( pos>9 ) pos = 9;
+   
+    // print it out
+    result[i] = pgm_read_byte(&grey[pos]);
+    channel[i] = 0;
+  }
+}

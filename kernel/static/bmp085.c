@@ -173,7 +173,7 @@ int16_t bmp085_gettemperature(void) {
 	return (((x1 + x2 + 8) >> 4) - 32.0f) / 1.8f; 
 	*/
 	long temperature = ((bmp085_rawtemperature + 8)>>4);
-	temperature = temperature / 10;
+	temperature = temperature;
 	return temperature;
 }
 
