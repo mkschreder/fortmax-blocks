@@ -79,13 +79,13 @@ extern "C" {
 #define NRF24L01_CH 54
 
 //payload lenght
-#define NRF24L01_PAYLOAD 16
+#define NRF24L01_PAYLOAD 32
 
 //auto ack enabled
-#define NRF24L01_ACK 1
+#define NRF24L01_ACK 0
 
 //auto retransmit delay and count
-#define NRF24L01_RETR (0b0100 << NRF24L01_REG_ARD) | (0b0111 << NRF24L01_REG_ARC) //1500uS, 15 times
+#define NRF24L01_RETR 0xff //1500uS, 15 times
 
 //enable / disable pipe
 #define NRF24L01_ENABLEDP0 1 //pipe 0
@@ -99,14 +99,15 @@ extern "C" {
 #define NRF24L01_ADDRSIZE 5
 
 //pipe address
+/*
 #define NRF24L01_ADDRP0 {0xE8, 0xE8, 0xF0, 0xF0, 0xE2} //pipe 0, 5 byte address
 #define NRF24L01_ADDRP1 {0xC1, 0xC2, 0xC2, 0xC2, 0xC2} //pipe 1, 5 byte address
 #define NRF24L01_ADDRP2 {0xC1, 0xC2, 0xC2, 0xC2, 0xC3} //pipe 2, 5 byte address
 #define NRF24L01_ADDRP3 {0xC1, 0xC2, 0xC2, 0xC2, 0xC4} //pipe 3, 5 byte address
 #define NRF24L01_ADDRP4 {0xC1, 0xC2, 0xC2, 0xC2, 0xC5} //pipe 4, 5 byte address
 #define NRF24L01_ADDRP5 {0xC1, 0xC2, 0xC2, 0xC2, 0xC6} //pipe 5, 5 byte address
-#define NRF24L01_ADDRTX {0xE8, 0xE8, 0xF0, 0xF0, 0xE2} //tx default address*/
-
+#define NRF24L01_ADDRTX {0xE8, 0xE8, 0xF0, 0xF0, 0xE2} //tx default address
+*/
  //enable print info function
 #define NRF24L01_PRINTENABLE 0
 

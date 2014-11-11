@@ -14,6 +14,8 @@ Please refer to LICENSE file for licensing information.
 #include <string.h>
 #include <stdio.h>
 
+#include <avr/pgmspace.h>
+
 #include "nrf24l01.h"
 #include "nrf24l01registers.h"
 
@@ -24,13 +26,14 @@ static volatile uint8_t *nrf_port = 0, *nrf_ddr = 0;
 static uint8_t nrf_ce_pin = 0, nrf_cs_pin = 0;
 
 //address variables
+/*
 static uint8_t nrf24l01_addr0[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP0;
 static uint8_t nrf24l01_addr1[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP1;
 static uint8_t nrf24l01_addr2[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP2;
 static uint8_t nrf24l01_addr3[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP3;
 static uint8_t nrf24l01_addr4[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP4;
 static uint8_t nrf24l01_addr5[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP5;
-static uint8_t nrf24l01_addrtx[NRF24L01_ADDRSIZE] = NRF24L01_ADDRTX;
+static uint8_t nrf24l01_addrtx[NRF24L01_ADDRSIZE] = NRF24L01_ADDRTX;*/
 
 /*
  * read one register
@@ -92,26 +95,26 @@ void nrf24l01_revaddress(uint8_t *addr, uint8_t *addrrev) {
  */
 void nrf24l01_setrxaddr(uint8_t pipe, uint8_t *addr) {
 	if(pipe == 0) {
-		memcpy(&nrf24l01_addr0, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr0, addr, NRF24L01_ADDRSIZE); //cache address
 		uint8_t addrrev[NRF24L01_ADDRSIZE];
 		nrf24l01_revaddress(addr, (uint8_t *)addrrev);
     	nrf24l01_writeregisters(NRF24L01_REG_RX_ADDR_P0, addrrev, NRF24L01_ADDRSIZE);
 	} else if(pipe == 1) {
-		memcpy(&nrf24l01_addr1, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr1, addr, NRF24L01_ADDRSIZE); //cache address
 		uint8_t addrrev[NRF24L01_ADDRSIZE];
 		nrf24l01_revaddress(addr, (uint8_t *)addrrev);
     	nrf24l01_writeregisters(NRF24L01_REG_RX_ADDR_P1, addrrev, NRF24L01_ADDRSIZE);
 	} else if(pipe == 2) {
-		memcpy(&nrf24l01_addr2, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr2, addr, NRF24L01_ADDRSIZE); //cache address
 		nrf24l01_writeregister(NRF24L01_REG_RX_ADDR_P2, addr[NRF24L01_ADDRSIZE-1]); //write only LSB MSBytes are equal to RX_ADDR_P
 	} else if(pipe == 3) {
-		memcpy(&nrf24l01_addr3, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr3, addr, NRF24L01_ADDRSIZE); //cache address
 		nrf24l01_writeregister(NRF24L01_REG_RX_ADDR_P3, addr[NRF24L01_ADDRSIZE-1]); //write only LSB MSBytes are equal to RX_ADDR_P
 	} else if(pipe == 4) {
-		memcpy(&nrf24l01_addr4, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr4, addr, NRF24L01_ADDRSIZE); //cache address
 		nrf24l01_writeregister(NRF24L01_REG_RX_ADDR_P4, addr[NRF24L01_ADDRSIZE-1]); //write only LSB MSBytes are equal to RX_ADDR_P
 	} else if(pipe == 5) {
-		memcpy(&nrf24l01_addr5, addr, NRF24L01_ADDRSIZE); //cache address
+		//memcpy(&nrf24l01_addr5, addr, NRF24L01_ADDRSIZE); //cache address
 		nrf24l01_writeregister(NRF24L01_REG_RX_ADDR_P5, addr[NRF24L01_ADDRSIZE-1]); //write only LSB MSBytes are equal to RX_ADDR_P
 	}
 }
@@ -120,7 +123,7 @@ void nrf24l01_setrxaddr(uint8_t pipe, uint8_t *addr) {
  * set tx address
  */
 void nrf24l01_settxaddr(uint8_t *addr) {
-	memcpy(&nrf24l01_addrtx, addr, NRF24L01_ADDRSIZE); //cache address
+	//memcpy(&nrf24l01_addrtx, addr, NRF24L01_ADDRSIZE); //cache address
 	uint8_t addrrev[NRF24L01_ADDRSIZE];
 	nrf24l01_revaddress(addr, (uint8_t *)addrrev);
 	nrf24l01_writeregisters(NRF24L01_REG_RX_ADDR_P0, addrrev, NRF24L01_ADDRSIZE); //set rx address for ack on pipe 0
@@ -149,7 +152,7 @@ void nrf24l01_flushTXfifo(void) {
  * set chip as RX
  */
 void nrf24l01_setRX(void) {
-	nrf24l01_setrxaddr(0, nrf24l01_addr0); //restore pipe 0 address
+	//nrf24l01_setrxaddr(0, nrf24l01_addr0); //restore pipe 0 address
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PRIM_RX)); //prx mode
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PWR_UP)); //power up
 	nrf24l01_writeregister(NRF24L01_REG_STATUS, (1<<NRF24L01_REG_RX_DR) | (1<<NRF24L01_REG_TX_DS) | (1<<NRF24L01_REG_MAX_RT)); //reset status
@@ -243,6 +246,9 @@ void nrf24l01_read(uint8_t *data) {
 	uint8_t i = 0;
 	//read rx register
 	
+	uint8_t sreg = SREG; 
+	cli(); 
+	
 	nrf24l01_CSNlo; //low CSN
 	spi_writereadbyte(NRF24L01_CMD_R_RX_PAYLOAD);
 	for(i=0; i<NRF24L01_PAYLOAD; i++)
@@ -257,6 +263,8 @@ void nrf24l01_read(uint8_t *data) {
 
 	//power down
 	nrf24l01_powerdown(); 
+	
+	SREG = sreg; 
 }
 
 /*
@@ -265,7 +273,10 @@ void nrf24l01_read(uint8_t *data) {
 uint8_t nrf24l01_write(uint8_t *data) {
 	uint8_t i = 0;
 	uint8_t ret = 0;
-
+	
+	uint8_t sreg = SREG; 
+	cli(); 
+	
 	//set tx mode
 	nrf24l01_setTX();
 
@@ -280,16 +291,20 @@ uint8_t nrf24l01_write(uint8_t *data) {
 	nrf24l01_CEhi; //high CE
 	_delay_us(15);
 	nrf24l01_CElo; //low CE
-
+	
 	//stop if max_retries reached or send is ok
+	uint8_t status = 0; 
+	uint32_t timeout = 1500; 
 	do {
-		_delay_us(10);
+		_delay_us(15);
+		status = nrf24l01_getstatus(); 
+		timeout--; if(timeout == 0) break; 
 	}
-	while( !(nrf24l01_getstatus() & (1<<NRF24L01_REG_MAX_RT | 1<<NRF24L01_REG_TX_DS)) );
+	while( !(status & (1<<NRF24L01_REG_MAX_RT | 1<<NRF24L01_REG_TX_DS)));
 
-	if(nrf24l01_getstatus() & 1<<NRF24L01_REG_TX_DS)
+	if(status & 1<<NRF24L01_REG_TX_DS)
 		ret = 1;
-	if(nrf24l01_getstatus() & 1<<NRF24L01_REG_MAX_RT)
+	if(status & 1<<NRF24L01_REG_MAX_RT)
 		ret = 2;
 		
 	//reset PLOS_CNT
@@ -297,10 +312,12 @@ uint8_t nrf24l01_write(uint8_t *data) {
 
 	//power down
 	nrf24l01_powerdown();
-	
+
 	//set rx mode
 	nrf24l01_setRX();
-
+	
+	SREG = sreg; 
+	
 	return ret;
 }
 
@@ -452,7 +469,7 @@ void nrf24l01_init(volatile uint8_t *port, volatile uint8_t *ddr, uint8_t ce_pin
 	#endif
 
 	//rx address
-	nrf24l01_setrxaddr(0, nrf24l01_addr0);
+	/*nrf24l01_setrxaddr(0, nrf24l01_addr0);
 	nrf24l01_setrxaddr(1, nrf24l01_addr1);
 	nrf24l01_setrxaddr(2, nrf24l01_addr2);
 	nrf24l01_setrxaddr(3, nrf24l01_addr3);
@@ -461,7 +478,7 @@ void nrf24l01_init(volatile uint8_t *port, volatile uint8_t *ddr, uint8_t ce_pin
 
 	//tx address
 	nrf24l01_settxaddr(nrf24l01_addrtx);
-
+*/
 	//set rx mode
 	nrf24l01_setRX();
 }

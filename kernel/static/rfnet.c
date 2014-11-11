@@ -7,20 +7,24 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <util/crc16.h>
 #include <util/delay.h>
 
 #include "crypto/sha256.h"
-#include "random.h"
+//#include "random.h"
 #include "nrf24l01.h"
 #include "rfnet.h"
+#include "time.h"
+#include "uart.h"
 
 /** Half duplex comm
 
-MASTERSTART
-SLAVEACK
-MASTERACK
-MASTERFIN
+MASTERSTART - send first data packet to slave
+SLAVEACK		- return data to master and ack previous packet
+MASTERACK 	- send continuation data to slave
+MASTERFIN		- signal slave that this is the last packet
+SLAVEFIN		- signal master that we have also closed the connection
 
 - master picks random nonce and sends it to slave in first packet
 - slave always acks packet received from master and sends with it it's data to master
@@ -49,51 +53,27 @@ uint8_t device_key[32] = {
 
 
 #define RFNET_BUFFER_SIZE 16
-#define RFNET_MAX_PIPES 6
-#define RFNET_READ_TIMEOUT 200
-
-#define DEVICE_PASSWORD "pleasechangeme"
+#define RFNET_MAX_PIPES 1
+//#define RFNET_READ_TIMEOUT 200
+#define RFNET_RETRY_COUNT 		20
+#define RFNET_RETRY_TIMEOUT 	20000
 
 
 // packet flags
-#define PTF_SYN 0x10
+#define PTF_SRT 0x10
 #define PTF_ACK 0x20
 #define PTF_FIN 0x40
 #define PTF_RST 0x80
 
-enum {
-	PT_READ = 1, // sends packet with nonce and addr, gets packet with data and nonce+1
-	PT_READ_RESP, // response to a read command
-	PT_WRITE, // sends packet with client nonce + 1, addr and data
-	PT_WRITE_RESP, // response to a write command
-	PT_MASTERSTART, 
-	PT_SLAVEACK,
-	PT_MASTERACK,
-	PT_MASTERFIN
-	//PT_REQ_WRITE,
-	//PT_DATA
-};
-
-typedef uint16_t nonce_t; 
-
-typedef void (*rfnet_write_callback_t)(int8_t con, const uint8_t *data, uint16_t size, void *ctx); 
-typedef void (*rfnet_read_callback_t)(int8_t con, uint8_t *data, uint16_t size, void *ctx); 
-
-struct rfnet_connection {
-	rfnet_mac_t 	addr; 
-	aes256_ctx_t 	key; 
-	uint32_t 			timeout; 
-	uint8_t 			state; 
-	rfnet_write_callback_t 	write; 
-	rfnet_read_callback_t 	read; 
-}; 
-
 struct __attribute__((__packed__)) packet {
-	uint8_t type; 
-	uint8_t data[10];
-	uint16_t nonce; // unique nonce for this packet
-	uint8_t size; // number of bytes in data that are valid data
-	uint16_t sum; // crc16 of the data
+	uint8_t type; 				// packet type
+	rfnet_mac_t from_addr; // from which device is this packet?
+	// sequence number is automatically incremented at slave and sent back
+	// to master with every update
+	uint16_t sequence_number; 
+	uint8_t data_size; // number of bytes in data that are valid data
+	uint8_t data[RFNET_PACKET_DATA_SIZE];
+	uint16_t checksum; // crc16 of the data
 }; 
 
 typedef struct {
@@ -112,7 +92,7 @@ static uint16_t gen_crc16(const uint8_t *data, uint16_t size)
 /// this function does nothing. 
 static void ___validate_packet_sizes___(void){
 	//struct packet p; 
-	STATIC_ASSERT(sizeof(struct packet) == 16, "Packet size must be 16 bytes!");
+	STATIC_ASSERT(sizeof(struct packet) == NRF24L01_PAYLOAD, "Packet size must be same as nrf payload size!");
 	STATIC_ASSERT(sizeof(struct packet) == sizeof(encrypted_packet_t), "Packet size must match aes encryption buffer size of 16 bytes");
 	/*STATIC_ASSERT((((uint8_t*)&p.sum) - ((uint8_t*)&p)) !=
 		(sizeof(struct packet) - sizeof(p.sum)),
@@ -120,345 +100,483 @@ static void ___validate_packet_sizes___(void){
 	STATIC_ASSERT(sizeof(struct packet) >= NRF24L01_PAYLOAD, "Transport layer block size must be same as packet size!"); 
 }
 
-static void packet_init(struct packet *pack){
+static void packet_build(struct packet *pack, 
+	rfnet_mac_t from, 
+	uint8_t type, 
+	uint8_t *data, 
+	uint8_t size, 
+	uint16_t nonce){
 	memset(pack, 0, sizeof(struct packet));
-}
-
-static uint8_t packet_validate(struct packet *pack){
-	return pack->sum == gen_crc16((uint8_t*)pack, sizeof(struct packet) - 2);
+	memcpy(pack->from_addr, from, sizeof(rfnet_mac_t)); 
+	pack->type = type; 
+	pack->data_size = (size > RFNET_PACKET_DATA_SIZE)?RFNET_PACKET_DATA_SIZE:size;
+	if(data) memcpy(pack->data, data, pack->data_size); 
+	pack->sequence_number = nonce; 
 }
 
 static void packet_encrypt(aes256_ctx_t *ctx, struct packet *pack, encrypted_packet_t *ep){
-	pack->sum = gen_crc16((uint8_t*)pack, sizeof(struct packet) - 2);
+	// checksum is done on whole packet
+	pack->checksum = gen_crc16((uint8_t*)pack, sizeof(struct packet) - 
+		sizeof(pack->checksum));
 	memcpy(ep, pack, sizeof(struct packet));
+	// encrypt the whole packet 
+	// packets must always be sent fully encrypted
 	aes256_enc(ep, ctx);
+	aes256_enc(((uint8_t*)ep) + 16, ctx);
 }
 
 static uint8_t packet_decrypt(aes256_ctx_t *ctx, encrypted_packet_t *ep, struct packet *pack){
-	encrypted_packet_t _ep;
+	struct packet pp; 
+	struct packet *p = &pp; 
 	// dec() is destructive so we need to create local copy
-	memcpy(&_ep, ep, sizeof(encrypted_packet_t)); 
-	aes256_dec(&_ep, ctx);
-	uint8_t valid = packet_validate((struct packet *)&_ep);
-	if(valid) memcpy((char*)pack, &_ep, sizeof(struct packet));
+	memcpy(p, ep, sizeof(encrypted_packet_t)); 
+	aes256_dec(p, ctx);
+	aes256_dec(((uint8_t*)p) + 16, ctx);
+	uint8_t valid = 0; 
+	if(p->checksum == gen_crc16((uint8_t*)p, sizeof(struct packet) - sizeof(p->checksum)))
+		valid = 1; 
+	if(valid) memcpy((char*)pack, p, sizeof(struct packet));
 	return valid; 
 }
 
-static uint8_t rfnet_send_packet(
-		struct rfnet *net, struct rfnet_device *dev, struct packet *pack){
-	uint8_t ret = 0;
-	encrypted_packet_t ep; 
-	
-	packet_encrypt(&dev->ctx, pack, &ep);
-	
-	for(int c = 0; c < RFNET_READ_TIMEOUT; c++){
-		ret = nrf24l01_write((uint8_t*)&ep);
+#define TX_PIPE 0
+#define RX_PIPE 1
 
-		if(ret == 1){
-			// success
-			net->stats.sent++;
-			return 1; 
-		} else if(ret == 2) {
-			// retry
-		} else {
-			break;  
-		}
-		_delay_ms(1); 
+typedef uint16_t nonce_t; 
+
+typedef enum {
+	EV_FAIL, 
+	EV_ENTER, 
+	EV_LEAVE, 
+	EV_PUT_DATA, 
+	EV_GOT_DATA, 
+	EV_GOT_ACK, 
+	EV_RETRIES_EXPENDED, 
+	EV_TIMEOUT
+} con_event_t; 
+
+#define CON_STATE(NAME, CON, EV, DATA, SIZE) \
+	static uint8_t NAME(struct rfnet_connection *CON, \
+	con_event_t EV, uint8_t *DATA, uint8_t SIZE)
+
+struct rfnet_connection; 
+typedef uint8_t (*rfnet_state_proc_t)(
+	struct rfnet_connection *con, con_event_t ev,
+	uint8_t *data, uint8_t size);
+
+struct rfnet_connection {
+	rfnet_mac_t 				tx_addr; 
+	rfnet_mac_t 				rx_addr;
+	aes256_ctx_t 				*key; 
+	aes256_ctx_t 				tx_key; 
+	aes256_ctx_t 				rx_key; 	// the key of the other device
+	encrypted_packet_t	tx_buffer; // buffer for outgoing data
+	rfnet_state_proc_t 	state; // current state of connection
+	timeout_t 					timeout; // time of the next timeout (used by state)
+	uint8_t							retries; 
+	nonce_t 						sequence_number; 
+	//rfnet_data_buffer_ready_proc_t 	cb_tx_buffer_empty; 
+	rfnet_request_handler_proc_t 	cb_handle_request; 
+	rfnet_response_handler_proc_t cb_handle_response; 
+	rfnet_error_proc_t 	cb_error; 
+	/*rfnet_mac_t 		addr; // address of the other device
+	rfnet_mac_t 		to; 
+	timeout_t 			timeout; // time of the next timeout (used by state)
+	uint16_t				timeout_interval;  			
+	uint8_t					retries; 
+	nonce_t 				nonce; 
+	encrypted_packet_t	buffer; // buffer for outgoing data
+	rfnet_state_proc_t state; // current state of connection
+	//rfnet_data_buffer_ready_proc_t 	cb_tx_buffer_empty; 
+	rfnet_rx_data_ready_proc_t 	cb_rx_buffer_ready; 
+	rfnet_error_proc_t 	cb_error; */
+}; 
+
+// device configuration that is maintained for each device on hub side
+struct rfnet_device_config {
+	uint8_t 				valid; 
+	rfnet_mac_t 		device_addr; 
+	rfnet_pw_t 			passwd; 
+}; 
+
+struct rfnet {
+	struct rfnet_connection connection;
+}; 
+
+static struct rfnet _net; 
+
+static const char *err_string(rfnet_error_t err){
+	static const char *errors[] = {
+		"INFO", 
+		"RFNET_ERR_READ_REQ_SEND_FAIL",  
+		"RFNET_ERR_TIMEOUT", 
+		"RFNET_ERR_ALL_NOT_READ", 
+		"RFNET_ERR_BUFFER_SEND_FAILED", 
+		"RFNET_ERR_NONCE_MISMATCH", 
+		"RFNET_ERR_INVALID_PACKET", 
+		"RFNET_ERR_CONNECT_TIMEOUT"
+	}; 
+	uint8_t id = (err * -1) % 8; 
+	return errors[id]; 
+}
+
+static void con_error(struct rfnet_connection *con, rfnet_error_t err){
+	if(con->cb_error){
+		con->cb_error(err, err_string(err)); 
 	}
-	net->stats.send_failed++; 
+}
+
+static void con_debug(struct rfnet_connection *con, const char *str){
+	if(con->cb_error){
+		con->cb_error(0, str); 
+	}
+}
+
+CON_STATE(ST_IDLE, 				con, ev, data, size); 
+CON_STATE(ST_SEND_DATA, 	con, ev, data, size); 
+
+static uint8_t _default_handle_response(const uint8_t *data, uint8_t size){
 	return 0; 
 }
 
-static uint8_t rfnet_recv_packet(struct rfnet *net, struct rfnet_device *dev, struct packet *pack){
-	uint8_t pipe = 0xff; 
-	uint8_t buffer[NRF24L01_PAYLOAD]; 
-	
-	//if data is ready on our interface
-	if(nrf24l01_readready(&pipe) && pipe < 7) { 
-		//read buffer
-		nrf24l01_read(buffer);
-		
-		net->stats.received++; 
-		
-		if(!packet_decrypt(&dev->ctx, (encrypted_packet_t*)buffer, pack)){
-			return 0; 
-		}
-		
-		net->stats.decrypted++; 
-		
-		if(pack->nonce != dev->nonce){
-			net->stats.dropped++; 
-			return RFNET_ERR_NONCE_MISMATCH; 
-		}
-		return 1; 
-	}
-	return 0; 
-}
-
-void rfnet_dev_init(struct rfnet_device *dev, const char *pw){
+static void con_init(
+		struct rfnet_connection *con, 
+		rfnet_mac_t addr, 
+		const char *pw, 
+		rfnet_request_handler_proc_t cb_data_ready, 
+		rfnet_error_proc_t cb_error){
 	sha256_hash_t hash; 
 	sha256(&hash, pw, strlen(pw)); 
 	
-	aes256_init(hash, &dev->ctx); 
-	dev->nonce = 0; 
+	aes256_init(hash, &con->rx_key); 
+	memcpy(&con->tx_key, &con->rx_key, sizeof(con->tx_key)); 
+	con->key = &con->rx_key; 
+	memcpy(con->rx_addr, addr, sizeof(rfnet_mac_t)); 
+	memcpy(con->tx_addr, addr, sizeof(rfnet_mac_t)); 
+	
+	con->timeout = 0; 
+	//con->timeout_interval = 0; 
+	con->retries = 0; 
+	con->state = ST_IDLE; 
+	
+	//con->cb_tx_buffer_empty = 0; 
+	con->cb_handle_request = cb_data_ready; 
+	con->cb_handle_response = _default_handle_response; 
+	con->cb_error = cb_error; 
 }
 
-void rfnet_init(struct rfnet *net, const char *root_pw, 
-	volatile uint8_t *outport, volatile uint8_t *ddrport, 
-	uint8_t cepin, uint8_t cspin){
+
+static void con_connect(
+	struct rfnet_connection *con, 
+	rfnet_mac_t addr, 
+	const char *pw, 
+	rfnet_response_handler_proc_t cb_resp
+){
+	sha256_hash_t hash; 
+	sha256(&hash, pw, strlen(pw)); 
+	
+	aes256_init(hash, &con->tx_key); 
+	memcpy(con->tx_addr, addr, sizeof(rfnet_mac_t)); 
+	
+	con->cb_handle_response = cb_resp; 
+}
+
+static void con_process_events(struct rfnet_connection *con){
+	if(!con->state) return; 
+	if(con->retries > 0 && timeout_expired(con->timeout)){
+		//rfnet_mac_t from; 
+		con->state(con, EV_TIMEOUT, 0, 0); 
+		con->timeout = timeout_from_now(RFNET_RETRY_TIMEOUT); 
+		con->retries--; 
+		if(con->retries == 0)
+			con->state(con, EV_RETRIES_EXPENDED, 0, 0); 
+	}
+}
+static void con_enter_state(
+		struct rfnet_connection *con, 
+		rfnet_state_proc_t state, 
+		uint8_t *data, 
+		uint8_t size){
+	//rfnet_mac_t from; 
+	if(!con->state) return; 
+	con->state(con, EV_LEAVE, 0, 0); 
+	con->retries = 0; 
+	con->timeout = 0; 
+	con->state = state; 
+	con->state(con, EV_ENTER, data, size); 
+}
+
+static void con_set_retries(struct rfnet_connection *con, uint8_t retries, uint16_t interval){
+	con->timeout = timeout_from_now(interval); 
+	con->retries = retries;
+}
+/*
+static void _con_send_buffer(struct rfnet_connection *con){
+	//memcpy(con->to, to, sizeof(rfnet_mac_t)); 
+	
+	//for(int c = 0; c < 5; c++) uart_printf("%02x", to[c]); 
+	//uart_printf("\n"); 
+	
+	nrf24l01_settxaddr(con->addr); 
+	// try to send (if this step fails then packet did not arrive!)
+	if(nrf24l01_write((uint8_t*)&con->buffer) == 2){
+		// without auto ack enabled, we never get here
+		con_debug(con, "MAXRT"); 
+	}
+}
+*/
+CON_STATE(ST_IDLE, con, ev, data, size){
+	switch(ev){
+		// enter/leave state
+		case EV_LEAVE: 
+		case EV_ENTER: {
+			break; 
+		}
+		// we want to write data to the connection
+		case EV_PUT_DATA: { // user code writes packet to the socket
+			// switch to send start state and pass the incoming data to it
+			con_debug(con, "IDL:DATA"); 
+			
+			// send start to the address specified by this connection
+			con_enter_state(con, ST_SEND_DATA, data, size); 
+			
+			break; 
+		}
+		case EV_GOT_DATA: { 
+			// we got data from the other end of rf connection
+			//con_debug(con, "IDL:START"); 
+			
+			// invoke callback that will fill output buffer which we can send back
+			uint8_t outdata[RFNET_PACKET_DATA_SIZE]; 
+			uint8_t outsize = 0; 
+			if(con->cb_handle_request)
+				outsize = con->cb_handle_request(data, size, 
+					outdata, RFNET_PACKET_DATA_SIZE); 
+			
+			{ // SEND RESPONSE 
+				struct packet pack; 
+				
+				// build packet from us addressed to the same address as us
+				packet_build(&pack, 
+					con->rx_addr, 
+					PTF_ACK, 
+					outdata, 
+					outsize, 
+					con->sequence_number + 1); 
+					
+				packet_encrypt(&con->rx_key, &pack, &con->tx_buffer); 
+				
+				nrf24l01_settxaddr(con->rx_addr); 
+				nrf24l01_write((uint8_t*)&con->tx_buffer); 
+				//uart_printf("sent to: "); 
+				//for(int c = 0; c < 5; c++) uart_printf("%02x", con->rx_addr[c]); 
+				
+				
+			}
+			// we always send response on the same address
+			//_con_send_buffer(con); 
+			
+			// we always only respond once. If packet gets lost another start 
+			// will be sent and we can try resending. 
+			break; 
+		}
+		default: { 
+			//con_error(con, RFNET_ERR_INVALID_EVENT); 
+			//return 0; 
+			break; 
+		}
+	}
+	return 1; 
+}
+
+/// state that sends out a data packet and retries to send it a few times
+CON_STATE(ST_SEND_DATA, con, ev, data, size){
+	switch(ev){
+		case EV_ENTER: {
+			con_debug(con, "SRT:ENTER"); 
+			struct packet pack; 
+			
+			packet_build(&pack, 
+				con->rx_addr, 
+				PTF_SRT, 
+				data, 
+				size, 
+				con->sequence_number
+			); 
+			
+			con->key = &con->tx_key; 
+			packet_encrypt(&con->tx_key, &pack, &con->tx_buffer); 
+			
+			nrf24l01_settxaddr(con->tx_addr); 
+			nrf24l01_write((uint8_t*)&con->tx_buffer); 
+			// send the buffer to address of selected connection 
+			//_con_send_buffer(con); 
+			con_set_retries(con, RFNET_RETRY_COUNT, RFNET_RETRY_TIMEOUT); 
+			
+			break; 
+		}
+		case EV_LEAVE: {
+			con_debug(con, "SRT:LV"); 
+			con->key = &con->rx_key; 
+			nrf24l01_settxaddr(con->rx_addr); 
+			break; 
+		}
+		case EV_GOT_ACK: { 
+			// the other side has sent us valid data response
+			// notify the user of the data we have received and ask for more
+			con_debug(con, "SRT:ACK"); 
+			//uint8_t outsize = 0; 
+			if(con->cb_handle_response){
+				// send rx buffer ready but no data can be sent back
+				con->cb_handle_response(data, size); 
+			}
+			// and return to idle state
+			con_enter_state(con, ST_IDLE, data, size); 
+			break; 
+		}
+		case EV_TIMEOUT: { // the timeout timer has timedout
+			//PORTD &= ~_BV(4); 
+			//con_debug(con, "SRT:TOUT"); 
+			// resend the encrypted packet
+			
+			//nrf24l01_settxaddr(con->tx_addr); 
+			nrf24l01_write((uint8_t*)&con->tx_buffer); 
+			break; 
+		}
+		case EV_RETRIES_EXPENDED: { // all retries have not resulted in ack!
+			//con_debug(con, "START:RETRYZERO"); 
+			con_error(con, RFNET_ERR_TIMEOUT); 
+			con_enter_state(con, ST_IDLE, 0, 0); 
+			break; 
+		}
+		default: {
+			//con_error(con, RFNET_ERR_INVALID_EVENT); 
+			// all other events are ignored
+		}
+	}
+	return 1; 
+}
+
+void rfnet_init(
+		rfnet_mac_t addr, // listen address
+		const char *root_pw, // password for this device
+		volatile uint8_t *outport, volatile uint8_t *ddrport, uint8_t cepin, uint8_t cspin, 
+		rfnet_request_handler_proc_t data_proc, 
+		rfnet_error_proc_t cb_error){
+	
+	struct rfnet *net = &_net; 
+	
 	// to avoid compiler warning
 	___validate_packet_sizes___(); 
 	
-	rfnet_dev_init(&net->root_dev, root_pw); 
-	
-	/*sha256_hash_t hash; 
-	sha256(&hash, root_pw, strlen(root_pw)); 
-	
-	aes256_init(hash, &net->root_ctx); */
-	net->get_field = 0; 
-	net->stats.sent = net->stats.received = net->stats.decrypted = 0; 
-	
+	// initialize the radio
 	nrf24l01_init(outport, ddrport, cepin, cspin); 
+	
+	// read configuration from eeprom
+	/*
+	struct rfnet_device_config config; 
+	eeprom_read_block(&config, 0, sizeof(struct rfnet_device_config)); 
+	
+	eeprom_busy_wait(); 
+	uint8_t *d = (uint8_t*)&config; 
+	for(int c = 0; c < sizeof(config); c++){
+		uart_printf("0x%02x", d[c]); 
+	}
+	uart_printf("\n"); 
+	
+	config.valid = 1; 
+	memcpy(config.device_addr, addr, sizeof(rfnet_mac_t)); 
+	snprintf(config.passwd, sizeof(rfnet_pw_t), "%s", "ThePassWord!"); 
+	eeprom_update_block(&config, 0, sizeof(config)); 
+	eeprom_busy_wait(); 
+	*/
+	// setup a connection for listening on the wire
+	con_init(&net->connection, addr, root_pw, data_proc, cb_error); 
+	
+	// pipe 1 is always active as receive pipe
+	
+	nrf24l01_setrxaddr(0, addr); 
+	
+	time_init(); 
+	
+	//net->stats.sent = net->stats.received = net->stats.decrypted = 0; 
+	
 	//nrf24l01_init(&PORTC, &DDRC, PC2, PC3); 
 }
 
 
-static void _rfnet_init_syn_packet(struct packet *pack, struct rfnet_device *dev){
-	dev->nonce = rand(); 
-	packet_init(pack); 
-	pack->type = PTF_SYN; 
-	pack->nonce = dev->nonce; 
-	pack->size = 0; 
-	dev->nonce++; 
-}
-
-static void _rfnet_init_synack_packet(struct packet *pack, struct rfnet_device *dev){
-	packet_init(pack); 
-	pack->type = PTF_SYN | PTF_ACK; 
-	pack->nonce = ++dev->nonce; 
-	pack->size = 0; 
-}
-
-static void _rfnet_init_ack_packet(struct packet *pack, struct rfnet_device *dev){
-	packet_init(pack); 
-	pack->type = PTF_ACK; 
-	pack->nonce = ++dev->nonce; 
-	pack->size = 0; 
-}
-
-static void _rfnet_init_read_packet(struct packet *pack, struct rfnet_device *dev, uint8_t field){
-	packet_init(pack); 
-	pack->type = PT_READ; 
-	pack->data[0] = field; 
-	pack->nonce = dev->nonce++; 
-	pack->size = 1; 
-}
-
-static void _rfnet_init_data_packet(struct packet *pack, struct rfnet_device *dev, uint8_t *data, uint8_t size){
-	packet_init(pack); 
-	pack->type = PT_READ_RESP; 
-	memcpy(pack->data, data, size); 
-	pack->size = size; 
-	pack->nonce = ++dev->nonce; 
-}
-
-/** 
- * Connects to another node by agreeing on a common nonce
- */
-static int8_t rfnet_connect(struct rfnet *net, struct rfnet_device *dev, uint8_t field){
-	struct packet syn;
-	struct packet ack; 
+void rfnet_process_events(void){
+	// check for any received packets
+	uint8_t pipe = 0xff; 
+	uint8_t max_packets = 10; 
 	
-	// send syn 
-	_rfnet_init_syn_packet(&syn, dev); 
-	
-	// wait for ack and retry
-	for(int c = 0; c < 4; c++){
-		rfnet_send_packet(net, dev, &syn); 
-		for(int wait = 0; wait < 40; wait++){
-			if(rfnet_recv_packet(net, dev, &ack)){
-				if(ack.type & (PTF_SYN | PTF_ACK))
-					return 1; 
-				else {
-					// otherwise resend syn
-					//rfnet_send_packet(net, dev, &syn); 
-				}
+	//poll radio for incoming packets
+	for(;;){
+		if(nrf24l01_readready(&pipe) && pipe < 7 && --max_packets) { 
+			encrypted_packet_t ep; 
+			struct packet pack; 
+			
+			//read buffer
+			nrf24l01_read((uint8_t*)&ep);
+			
+			//net->stats.received++; 
+			
+			// determine which connection the packet belongs to
+			struct rfnet_connection *con = &_net.connection; 
+			
+			// try decrypting the packet using the connection key
+			if(!packet_decrypt(con->key, &ep, &pack)){
+				con_debug(&_net.connection, "DECRFAIL0"); 
+				continue; 
 			}
-			_delay_ms(1); 
+			
+			// this is where we need to test nonce
+			// TODO 
+			
+			// generate appropriate event for the connection
+			if(pack.type & PTF_SRT){
+				// got incoming data packet
+				//con->nonce = pack.nonce + 1; 
+				con->state(con, EV_GOT_DATA, pack.data, pack.data_size); 
+			}
+			else if(pack.type & PTF_ACK){
+				// got data response packet
+				//con->nonce = pack.nonce + 1; 
+				con->state(con, EV_GOT_ACK, pack.data, pack.data_size); 
+			}
+			else {
+				con_debug(&_net.connection, "INVPACK"); 
+			}
+		//} else {
 		}
+		break; 
 	}
+	// process connection events
+	con_process_events(&_net.connection); 
+}
+
+// writes a block to the connection of size RFNET_PACKET_DATA_SIZE
+uint8_t rfnet_send(uint8_t *data, uint8_t size){
+	struct rfnet_connection *con = &_net.connection; 
 	
+	// check so that the connection is ready to accept data
+	if(!con->state || con->state != ST_IDLE) return 0; 
+	
+	uint8_t s = (size > RFNET_PACKET_DATA_SIZE)?RFNET_PACKET_DATA_SIZE:size; 
+	if(con->state(con, EV_PUT_DATA, data, s)){
+		return s; 
+	} 
 	return 0; 
 }
 
-/// Sets the address of our listening pipe
-void rfnet_setaddress(const rfnet_mac_t addr){
-	
-}
+/// adds a new connection to list of connections
+uint8_t rfnet_connect(
+		rfnet_mac_t addr,  // address of the other device
+		const char *pw, 		// password for the other device
+		rfnet_response_handler_proc_t data_handler){
 
-/// Sets the encryption key for our listening pipe
-void rfnet_setpassword(const char *pw){
+	con_connect(&_net.connection, addr, pw, data_handler); 
 	
-}
-
-/// Sets up a context for a node that has hw address addr, key, and method that is called when new packets are decoded from the node. 
-int8_t rfnet_connect(const rfnet_mac_t addr, const char *pw, 
-	// called when the node tries to send data to us
-	rfnet_write_callback_t write, 
-	// called when the driver requests data to send to the node
-	rfnet_read_callback_t read, 
-	void *ctx){
-	
-}
-
-/// performs an active write to the connection
-int8_t rfnet_write(int8_t con); 
-
-/** 
-	encrypts the data and sends it out on the address of the device
-	awaits ack from the device with possible data packet. 
-**/
-void rfnet_writeread(struct rfnet_device *dev, const uint8_t *datain, uint8_t *dataout, uint16_t size){
-	
-}
-
-void rfnet_read(uint8_t *data, uint16_t size){
-	
-}
-
-/*** 
- * Synchronized read operation
- * 
- * - we send a PT_READ packet with field id to the node
- * - we start listening for packets from the node
- * - node answers with first PT_READ_RESP packet containing the data
- * - we send PT_ACK to the node. 
- * - node sends next PT_READ_RESP
- * 
- * Possible pitfalls: 
- * - our PT_READ packet does not reach the node
- * -- We timeout and return error
- * - nodes PT_READ_RESP does not reach us
- * -- We timeout and return error
- * - another node sends out ACK to our node
- * -- We get packet with wrong nonce so we return error
- * - our ack does not reach the node in time
- * -- We timeout and return error
- **/
- 
-int8_t rfnet_sync_read(struct rfnet *net, struct rfnet_device *dev, 
-	uint8_t field_id, uint8_t *outbuf, int16_t size){
-	struct packet pack; 
-	
-	// clear any pending acks or other stuff in the queue
-	//nrf24l01_flushTXfifo(); 
-	
-	// send syn and wait for synack (indicating the other end is ready)
-	if(!rfnet_connect(net, dev, field_id)){
-		return RFNET_ERR_CONNECT_TIMEOUT; 
-	}
-	
-	// send read request and wait for one or more read_resp
-	_rfnet_init_read_packet(&pack, dev, field_id); 
-	for(int c = 0; c < 5; c++){
-		if(rfnet_send_packet(net, dev, &pack))
-			break; 
-		if(c == 4)
-			return RFNET_ERR_READ_REQ_SEND_FAIL; 
-		_delay_ms(5); 
-	}
-	
-	int16_t timeout = RFNET_READ_TIMEOUT; 
-	int16_t read_count = 0; 
-	
-	while(timeout > 0 && read_count < size){
-		if(rfnet_recv_packet(net, dev, &pack)){
-			if(pack.type == PT_READ_RESP && pack.size > 0){
-				
-				uint8_t cs = ((read_count + pack.size) >= size)?(size-read_count):pack.size;
-				
-				memcpy(outbuf, pack.data, cs); 
-				read_count += cs; 
-				outbuf+=cs; 
-				
-				// send ack
-				_rfnet_init_ack_packet(&pack, dev); 
-				if(!rfnet_send_packet(net, dev, &pack)){
-					return RFNET_ERR_BUFFER_SEND_FAILED; 
-				}
-				
-				if(read_count < size){
-					timeout = RFNET_READ_TIMEOUT; 
-					
-					continue; 
-				} else {
-					//nrf24l01_flushRXfifo(); 
-					break; 
-				}
-			} else {
-				return RFNET_ERR_INVALID_PACKET;
-			}
-		} 
-		_delay_ms(1); 
-		timeout-=1; 
-	}
-	if(timeout <= 0) return RFNET_ERR_TIMEOUT; 
-	if(read_count < size) return RFNET_ERR_ALL_NOT_READ; 
 	return 1; 
 }
-
-void rfnet_write(void){
-	
-}
-
-int8_t rfnet_process_packets(struct rfnet *net){
-	struct packet pack; 
-	if(rfnet_recv_packet(net, &net->root_dev, &pack)){
-		// connection request
-		if(pack.type & PTF_SYN){
-			// store nonce for future reference
-			net->root_dev.nonce = pack.nonce + 1; 
-			// send back syn ack
-			_rfnet_init_synack_packet(&pack, &net->root_dev); 
-			rfnet_send_packet(net, &net->root_dev, &pack); 
-		} else if(pack.type == PT_READ && net->get_field){
-			// read: 
-			// data[0] = field_id
-		
-			uint8_t *field_data; 
-			uint8_t field_size = 0; 
-			
-			if(net->get_field(pack.data[0], &field_data, &field_size)){
-				while(field_size > 0){ 
-					uint8_t size = (field_size > sizeof(pack.data))?sizeof(pack.data):field_size; 
-					
-					struct packet pdata;
-					
-					// prepare a data packet and send it 
-					_rfnet_init_data_packet(&pdata, &net->root_dev, field_data, size); 
-					if(!rfnet_send_packet(net, &net->root_dev, &pdata)){
-						return RFNET_ERR_BUFFER_SEND_FAILED; 
-					}
-					
-					field_size -= size; 
-					field_data += size; 
-					
-					// wait for ack response
-					uint8_t cont = 0; 
-					for(int tries = 0; tries < RFNET_READ_TIMEOUT; tries++){
-						if(rfnet_recv_packet(net, &net->root_dev, &pack) && 
-							pack.type & PTF_ACK){
-							cont = 1; 
-							break; 
-						}
-						_delay_ms(1); 
-					}
-					if(!cont) return RFNET_ERR_TIMEOUT; 
-				}
-			} 
-		}
-	}
-	return 1; 
-}
-
 

@@ -391,7 +391,7 @@ void uart_init(struct uart *_u0, unsigned int baudrate)
 
 uint16_t uart_waiting(void){
 	if(!uart0) return 0; 
-	int16_t l = uart0->UART_RxHead - uart0->UART_RxTail; 
+	int16_t l = (int16_t)uart0->UART_RxHead - (int16_t)uart0->UART_RxTail; 
 	return (l < 0)?(l+UART_RX_BUFFER_SIZE):l;
 }
 
@@ -467,7 +467,7 @@ void uart_puts(const char *s )
 }/* uart_puts */
 
 
-void uart_printf(const char *fmt, ...){
+uint16_t uart_printf(const char *fmt, ...){
 	if(!uart0) return;
 	
 	char buf[256]; 
@@ -477,6 +477,7 @@ void uart_printf(const char *fmt, ...){
 	n = vsnprintf(buf, sizeof(buf)-1, fmt, vl); 
 	va_end(vl);
 	uart_puts(buf);
+	return n; 
 }
 
 /*************************************************************************
