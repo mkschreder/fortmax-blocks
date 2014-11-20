@@ -110,7 +110,7 @@ void twi_slave_start_with_data( unsigned char *msg, unsigned char msgSize )
 {
   unsigned char temp;
 
-  while ( TWI_Transceiver_Busy() ) {}             // Wait until TWI is ready for next transmission.
+  while ( twi_slave_busy() ) {}             // Wait until TWI is ready for next transmission.
 
   TWI_msgSize = msgSize;                        // Number of data to transmit.
   for ( temp = 0; temp < msgSize; temp++ )      // Copy data that may be transmitted if the TWI Master requests data.
@@ -229,6 +229,7 @@ ISR(TWI_vect)
       break;
     case TWI_SRX_ADR_DATA_ACK:       // Previously addressed with own SLA+W; data has been received; ACK has been returned
     case TWI_SRX_GEN_DATA_ACK:       // Previously addressed with general call; data has been received; ACK has been returned
+      // TODO: What is this? Seems to be no bounds checking!
       TWI_buf[TWI_bufPtr++]     = TWDR;
       TWI_statusReg.lastTransOK = TRUE;                 // Set flag transmission successfull.       
                                                         // Reset the TWI Interupt to wait for a new event.

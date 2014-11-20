@@ -18,46 +18,8 @@
 #include "time.h"
 #include "uart.h"
 
-/** Half duplex comm
-
-MASTERSTART - send first data packet to slave
-SLAVEACK		- return data to master and ack previous packet
-MASTERACK 	- send continuation data to slave
-MASTERFIN		- signal slave that this is the last packet
-SLAVEFIN		- signal master that we have also closed the connection
-
-- master picks random nonce and sends it to slave in first packet
-- slave always acks packet received from master and sends with it it's data to master
-- master checks the ack and sends either a fin or masterack with more data to slave
-- if fin is sent, the slave does not ack it. 
-
-if master sends masterstart and does not receives slaveack, master resends masterstart. If slave sends ack and does not receive either masterack or masterfin, slave resends the slaveack. if slave does not get the masterfin, it will send slaveack once again until timeout. In that case master will retransmit masterfin again until the slave stops sending slaveack. If master is not listening or has switched to communicatin with another slave on another channel, then slave will eventually timeout. All packets with valid checksum but wrong sequence numbers that are picked up by the master are answered by the master with masterfin. Slaves never send data on the air unless they are asked to do so by the master. 
-
-All nodes that operate on a network address can listen in on the communications. If multiple masters are on the bus, they can listen in until they get a MASTERFIN packet and then start transmitting. But for simplicity it is better to only have one master that instructs slaves to start sending data. If slave has no data, it will transmit slaveack with size 0. 
-
-Basically the master sends out masterstart, waits 1ms (for the slave to encrypt response) then tries to read. If no data is available, master resends the packet again, waits 1ms and reads response. Slave then asnvers with slaveack with nonce set to nonce of previous master packet plus one. If master receives any other nonce, it rejects the packet and resends again until it gets the correct nonce or times out. When correct nonce is received, master sends out masterack with the received nonce plus one. Slave does the same - waits for correct nonce before sendin out more data.
-
-The rf driver takes as input the address on which to do all communication and the key or password that is used for encryption. Any subsequent call to send/recv will send or receive on that address. The send and receive operation is a simultaneous process - just like with SPI. so the method that is used for sending a buffer, will send the buffer and replace the data with bytes received from the other side. 
-*/
-/*
-// default address 
-uint8_t rf_addr[5] = {0x3b, 0x31, 0xbb, 0x23, 0x39};
-
-// aes256 key for this device pair
-uint8_t device_key[32] = {
-		0x62, 0xd9, 0x60, 0xdb, 0x66, 0xdd, 0x64, 0xdf,
-		0x6a, 0xd1, 0x68, 0xd3, 0x6e, 0xd5, 0x6c, 0xd7,
-		0x72, 0xc9, 0x70, 0xcb, 0x76, 0xcd, 0x74, 0xcf,
-		0x7a, 0xc1, 0x78, 0xc3, 0x7e, 0xc5, 0x7c, 0xc7
-};*/
-
-
-#define RFNET_BUFFER_SIZE 16
-#define RFNET_MAX_PIPES 1
-//#define RFNET_READ_TIMEOUT 200
 #define RFNET_RETRY_COUNT 		50
 #define RFNET_RETRY_TIMEOUT 	20000
-
 
 // packet flags
 #define PTF_SRT 0x10

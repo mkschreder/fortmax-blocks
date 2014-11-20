@@ -1,5 +1,11 @@
 #pragma once
 
+/** 
+ * 	Author: Martin K. Schröder 
+ *  Date: 2014
+ * 
+ * 	info@fortmax.se
+ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,9 +26,8 @@ void time_init(void);
 timeout_t time_get_clock(void); 
 
 // converts a value in microseconds to number of clock ticks
-inline uint32_t time_us_to_clock(uint32_t us){
-	return (F_CPU / 8000000) * us; 
-}
+uint32_t time_us_to_clock(uint32_t us);
+
 #ifdef __cplusplus
 }
 #endif

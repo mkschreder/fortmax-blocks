@@ -1,7 +1,17 @@
+/** 
+ * 	Author: Martin K. Schröder 
+ *  Date: 2014
+ * 
+ * 	info@fortmax.se
+ */
+ 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 #include "time.h"
+
+// update this for correct amount of ticks in microsecon
+#define TICKS_PER_US 2
 
 /// this holds the number of overflows of timer 1 (which counts clock ticks)
 static volatile uint32_t _timer1_ovf = 0;
@@ -17,6 +27,10 @@ void time_init(void){
 void time_reset(void){
 	_timer1_ovf = 0;
 	TCNT1 = 0; 
+}
+
+uint32_t time_us_to_clock(uint32_t us){
+	return TICKS_PER_US * us; 
 }
 
 timeout_t time_get_clock(void){
