@@ -39,11 +39,15 @@ static uint8_t nrf24l01_addrtx[NRF24L01_ADDRSIZE] = NRF24L01_ADDRTX;*/
  * read one register
  */
 uint8_t nrf24l01_readregister(uint8_t reg) {
+	_delay_us(10); 
 	nrf24l01_CSNlo; //low CSN
+	_delay_us(10); 
 	spi_writereadbyte(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
-    uint8_t result = spi_writereadbyte(NRF24L01_CMD_NOP); //read write register
-    nrf24l01_CSNhi; //high CSN
-    return result;
+	_delay_us(10); 
+	uint8_t result = spi_writereadbyte(NRF24L01_CMD_NOP); //read write register
+	_delay_us(10); 
+	nrf24l01_CSNhi; //high CSN
+	return result;
 }
 
 /*
@@ -51,10 +55,15 @@ uint8_t nrf24l01_readregister(uint8_t reg) {
  */
 void nrf24l01_readregisters(uint8_t reg, uint8_t *value, uint8_t len) {
 	uint8_t i = 0;
+	_delay_us(10); 
 	nrf24l01_CSNlo; //low CSN
+	_delay_us(10); 
 	spi_writereadbyte(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
-	for(i=0; i<len; i++)
+	_delay_us(10); 
+	for(i=0; i<len; i++){
 		value[i] = spi_writereadbyte(NRF24L01_CMD_NOP); //read write register
+		_delay_us(10); 
+	}
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -62,9 +71,13 @@ void nrf24l01_readregisters(uint8_t reg, uint8_t *value, uint8_t len) {
  * write one register
  */
 void nrf24l01_writeregister(uint8_t reg, uint8_t value) {
+	_delay_us(10); 
 	nrf24l01_CSNlo; //low CSN
+	_delay_us(10); 
 	spi_writereadbyte(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+	_delay_us(10); 
 	spi_writereadbyte(value); //write register
+	_delay_us(10); 
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -73,10 +86,15 @@ void nrf24l01_writeregister(uint8_t reg, uint8_t value) {
  */
 void nrf24l01_writeregisters(uint8_t reg, uint8_t *value, uint8_t len) {
 	uint8_t i = 0;
+	_delay_us(10); 
 	nrf24l01_CSNlo; //low CSN
-    spi_writereadbyte(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
-	for(i=0; i<len; i++)
+	_delay_us(10); 
+  spi_writereadbyte(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+	_delay_us(10); 
+	for(i=0; i<len; i++){
 		 spi_writereadbyte(value[i]); //write register
+		_delay_us(10); 
+	}
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -409,7 +427,8 @@ void nrf24l01_init(volatile uint8_t *port, volatile uint8_t *ddr, uint8_t ce_pin
 	nrf24l01_writeregister(NRF24L01_REG_SETUP_RETR, NRF24L01_RETR); // set retries
 	nrf24l01_writeregister(NRF24L01_REG_DYNPD, 0); //disable dynamic payloads
 	nrf24l01_writeregister(NRF24L01_REG_RF_CH, NRF24L01_CH); //set RF channel
-
+	//nrf24l01_writeregister(NRF24L01_REG_SETUP_AW, 0x00); 
+	
 	//payload size
 	#if NRF24L01_ENABLEDP0 == 1
 		nrf24l01_writeregister(NRF24L01_REG_RX_PW_P0, NRF24L01_PAYLOAD);
@@ -487,7 +506,7 @@ void nrf24l01_init(volatile uint8_t *port, volatile uint8_t *ddr, uint8_t ce_pin
 void nrf24l01_scan(uint8_t iterations, uint8_t result[NRF24L01_MAX_CHANNEL]){
 	//disable();
 	uint8_t channel[NRF24L01_MAX_CHANNEL];
-	char grey[] PROGMEM = "0123456789"; 
+	static const char grey[] PROGMEM = "0123456789"; 
 	//char grey[] = " .:-=+*aRW";
 
 	//nrf24l01_powerdown();

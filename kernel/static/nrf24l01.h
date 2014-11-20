@@ -89,7 +89,7 @@ extern "C" {
 
 //enable / disable pipe
 #define NRF24L01_ENABLEDP0 1 //pipe 0
-#define NRF24L01_ENABLEDP1 0 //pipe 1
+#define NRF24L01_ENABLEDP1 1 //pipe 1
 #define NRF24L01_ENABLEDP2 0 //pipe 2
 #define NRF24L01_ENABLEDP3 0 //pipe 3
 #define NRF24L01_ENABLEDP4 0 //pipe 4

@@ -12,9 +12,6 @@ Please refer to LICENSE file for licensing information.
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#warning "Standard adc driver will not be compiled!"
-#ifdef _FOO_BAR_NONE
-
 #if defined (__AVR_ATtiny13A__)
 #elif defined (__AVR_ATmega8__)
 #elif defined (__AVR_ATmega168__) || defined (__AVR_ATmega168P__)
@@ -37,15 +34,8 @@ Please refer to LICENSE file for licensing information.
  */
 void adc_setchannel(uint8_t channel)
 {
-	#if defined (__AVR_ATtiny13A__)
-	ADMUX &= 0b11111100; //clean channel
-	channel = channel & 0b00000011;
-	#elif defined (__AVR_ATmega8__) || defined (__AVR_ATmega168__) || defined (__AVR_ATmega168P__) || defined (__AVR_ATmega328__) || defined (__AVR_ATmega328P__)
-	ADMUX &= 0b11110000; //clean channel
-	channel = channel & 0b00001111;
-	#endif
 	ADCSRA &= ~(1 << ADEN);
-	ADMUX = channel; //set channel
+	ADMUX = (ADMUX & 0xf8) | (channel & 0x07); //set channel
 	ADCSRA |= (1 << ADEN);
 }
 
@@ -55,9 +45,10 @@ void adc_setchannel(uint8_t channel)
 uint16_t adc_readsel(void)
 {
 	ADCSRA |= (1 << ADSC); // Start conversion
-	while( !(ADCSRA & (1<<ADIF)) ); // Wait for conversion to complete
+	while(ADCSRA & _BV(ADSC)); 
+	//while( !(ADCSRA & (1<<ADIF)) ); // Wait for conversion to complete
 	uint16_t adc = ADC;
-	ADCSRA |= (1 << ADIF); // Clear ADIF by writing one to it
+	//ADCSRA |= (1 << ADIF); // Clear ADIF by writing one to it
 	return(adc);
 }
 
@@ -90,6 +81,8 @@ void adc_init(void)
 		#elif ADC_REF == 3
 		ADMUX |= (1 << REFS1) | (1 << REFS0); // Internal 2.56V Voltage Reference with external cap at AREF
 		#endif
+	#else 
+		#error "No processor type defined!"
 	#endif
 	
 	// Set ADC prescaler
@@ -125,11 +118,15 @@ void adc_init(void)
 		ADCSRA |= (1 << ADFR); // Set ADC to Free-Running Mode
 		#endif
 		ADCSRA |= (1 << ADIE); // Enable ADC Interrupt
+	#else 
+		ADCSRB |= (0 << ADTS2) | (0 << ADPS1) | (0 << ADPS0); // Free Running mode
 	#endif
 	
 	// Enable ADC
 	ADCSRA |= (1 << ADEN);
 
+	//DIDR0 = 0xff;
+	
 	#if	ADC_TRIGGERON == 1
 	ADCSRA |= (1 << ADSC); // Start conversions
 	#endif
@@ -193,4 +190,3 @@ unsigned int adc_emafilter(unsigned int newvalue, unsigned int value)
 	return value;
 }
 
-#endif

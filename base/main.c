@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 **********************************************/
 #include <stdio.h>
-#include "basic.h"
+//#include "basic.h"
 
 
 void kwdhook_(char *msg) {
@@ -35,9 +35,10 @@ int dobasic(int argc, char **argv) {
 */
 #include <util/delay.h>
 
+/*
 #include <drivers/avrbus.h>
 #include <drivers/uart.h>
-
+*/
 #include <kernel/kernel.h>
 #include <kernel/l3g4200d.h>
 #include <kernel/ssd1306.h>
@@ -124,8 +125,8 @@ void _clear_display(void *ptr){
 }
 */
 int main(void){
-	uart_init(UART_BAUD_SELECT(38400, F_CPU));
-	bus_master_init();
+	//uart_init(UART_BAUD_SELECT(38400, F_CPU));
+	//bus_master_init();
 
 	__asm("sei"); 
 
@@ -136,7 +137,7 @@ int main(void){
 	//delay_us(timer1, 1000000UL);
 
 	if(!kern){
-		uart_printf("ERROR INIT: %s\n", kdata.last_error);
+		//uart_printf("ERROR INIT: %s\n", kdata.last_error);
 		while(1);
 	}
 

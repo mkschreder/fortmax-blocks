@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <string.h> /* for memcpy, memmove, memset */
 #include "sha256.h"
+#include <avr/pgmspace.h>
 
 #define LITTLE_ENDIAN
 
@@ -44,7 +45,7 @@
 
 /*************************************************************************/
 
-uint32_t sha256_init_vector[]={
+static const uint32_t sha256_init_vector_p [] PROGMEM={
 	0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
     0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19 };
 
@@ -59,7 +60,12 @@ uint32_t sha256_init_vector[]={
  */
 void sha256_init(sha256_ctx_t *state){
 	state->length=0;
-	memcpy(state->h, sha256_init_vector, 8*4);
+	uint32_t *p = state->h; 
+	for(int c = 0; c < 8; c++){
+		*p = pgm_read_dword(sha256_init_vector_p[c]);
+		p++; 
+	}
+	//memcpy(state->h, sha256_init_vector, 8*4);
 }
 
 /*************************************************************************/
@@ -94,7 +100,7 @@ uint32_t change_endian32(uint32_t x){
 #define SIGMA_b(x) (rotr32((x),17) ^ rotr32((x),19) ^ ((x)>>10))
 
 
-uint32_t k[]={
+static const uint32_t pk[] PROGMEM = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
 	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -133,7 +139,7 @@ void sha256_nextBlock (sha256_ctx_t *state, const void* block){
 
 	/* do the, fun stuff, */
 		for (i=0; i<64; ++i){
-			t1 = a[7] + SIGMA1(a[4]) + CH(a[4],a[5],a[6]) + k[i] + w[i];
+			t1 = a[7] + SIGMA1(a[4]) + CH(a[4],a[5],a[6]) + pgm_read_dword(&pk[i]) + w[i];
 			t2 = SIGMA0(a[0]) + MAJ(a[0],a[1],a[2]);
 			memmove(&(a[1]), &(a[0]), 7*4); 	/* a[7]=a[6]; a[6]=a[5]; a[5]=a[4]; a[4]=a[3]; a[3]=a[2]; a[2]=a[1]; a[1]=a[0]; */
 			a[4] += t1;
@@ -204,9 +210,10 @@ void sha256_lastBlock(sha256_ctx_t *state, const void* block, uint16_t length){
 /*
  * length in bits!
  */
-void sha256(sha256_hash_t *dest, const void* msg, uint32_t length){ /* length could be choosen longer but this is for µC */
+void sha256(sha256_hash_t *dest, const void* msg, uint32_t len){
 	sha256_ctx_t s;
 	sha256_init(&s);
+	uint32_t length = len * 8; 
 	while(length >= SHA256_BLOCK_BITS){
 		sha256_nextBlock(&s, msg);
 		msg = (uint8_t*)msg + SHA256_BLOCK_BITS/8;

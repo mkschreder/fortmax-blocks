@@ -12,8 +12,8 @@ Please refer to LICENSE file for licensing information.
 #define ADC_H
 
 //setup values
-#define ADC_REF 0 //adc reference voltage (see adc_init function for reference)
-#define ADC_PRESCALER 8 //adc prescaler (2, 4, 8, 16, 32, 64, 128)
+#define ADC_REF 1 //adc reference voltage (see adc_init function for reference)
+#define ADC_PRESCALER 128 //adc prescaler (2, 4, 8, 16, 32, 64, 128)
 #define ADC_JUSTIFY 'R' //adc justify ('L' or 'R')
 #define ADC_TRIGGERON 0 //adc trigger (1 on - 0 off)
 #define ADC_REFRES 1024 //reference resolution used for conversions

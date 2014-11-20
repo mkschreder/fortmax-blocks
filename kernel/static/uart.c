@@ -468,9 +468,9 @@ void uart_puts(const char *s )
 
 
 uint16_t uart_printf(const char *fmt, ...){
-	if(!uart0) return;
+	if(!uart0) return 0;
 	
-	char buf[256]; 
+	char buf[UART_TX_BUFFER_SIZE]; 
 	uint16_t n; 
 	va_list vl; 
 	va_start(vl, fmt);

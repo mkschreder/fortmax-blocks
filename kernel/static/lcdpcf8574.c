@@ -10,6 +10,7 @@ Please refer to LICENSE file for licensing information.
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
+#include <stdarg.h>
 
 #include "pcf8574.h"
 
@@ -65,8 +66,8 @@ the number of loops is calculated at compile-time from MCU clock frequency
 static void toggle_e(void)
 {
 	pcf8574_setoutputpinhigh(LCD_PCF8574_DEVICEID, LCD_E_PIN);
-    lcd_e_delay();
-    pcf8574_setoutputpinlow(LCD_PCF8574_DEVICEID, LCD_E_PIN);
+	lcd_e_delay();
+	pcf8574_setoutputpinlow(LCD_PCF8574_DEVICEID, LCD_E_PIN);
 }
 
 
@@ -84,37 +85,21 @@ static void lcd_write(uint8_t data,uint8_t rs)
 	else /* write instruction (RS=0, RW=0) */
 		dataport &= ~_BV(LCD_RS_PIN);
 	dataport &= ~_BV(LCD_RW_PIN);
+	//dataport |= _BV(LCD_LED_PIN); 
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 
-	/* output high nibble first */
-    dataport &= ~_BV(LCD_DATA3_PIN);
-    dataport &= ~_BV(LCD_DATA2_PIN);
-    dataport &= ~_BV(LCD_DATA1_PIN);
-    dataport &= ~_BV(LCD_DATA0_PIN);
-	if(data & 0x80) dataport |= _BV(LCD_DATA3_PIN);
-	if(data & 0x40) dataport |= _BV(LCD_DATA2_PIN);
-	if(data & 0x20) dataport |= _BV(LCD_DATA1_PIN);
-	if(data & 0x10) dataport |= _BV(LCD_DATA0_PIN);
+	dataport &= ~0xf0; 
+	dataport |= data & 0xf0; 
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 	lcd_e_toggle();
 
 	/* output low nibble */
-	dataport &= ~_BV(LCD_DATA3_PIN);
-	dataport &= ~_BV(LCD_DATA2_PIN);
-	dataport &= ~_BV(LCD_DATA1_PIN);
-	dataport &= ~_BV(LCD_DATA0_PIN);
-	if(data & 0x08) dataport |= _BV(LCD_DATA3_PIN);
-	if(data & 0x04) dataport |= _BV(LCD_DATA2_PIN);
-	if(data & 0x02) dataport |= _BV(LCD_DATA1_PIN);
-	if(data & 0x01) dataport |= _BV(LCD_DATA0_PIN);
+	dataport &= ~0xf0; 
+	dataport |= data << 4; 
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 	lcd_e_toggle();
 
-	/* all data pins high (inactive) */
-	dataport |= _BV(LCD_DATA0_PIN);
-	dataport |= _BV(LCD_DATA1_PIN);
-	dataport |= _BV(LCD_DATA2_PIN);
-	dataport |= _BV(LCD_DATA3_PIN);
+	dataport |= 0xf0; 
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 }
 
@@ -125,30 +110,31 @@ Input:    rs     1: read data
                  0: read busy flag / address counter
 Returns:  byte read from LCD controller
 *************************************************************************/
+#include "uart.h"
 static uint8_t lcd_read(uint8_t rs) 
 {
-    uint8_t data;
+  uint8_t data = 0;
+	if (rs) // data
+		dataport |= _BV(LCD_RS_PIN);
+	else // instruction
+		dataport &= ~_BV(LCD_RS_PIN);
+	dataport |= _BV(LCD_RW_PIN);
+	dataport &= ~_BV(LCD_E_PIN); 
+	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 
-    if (rs) /* write data        (RS=1, RW=0) */
-    	dataport |= _BV(LCD_RS_PIN);
-    else /* write instruction (RS=0, RW=0) */
-    	dataport &= ~_BV(LCD_RS_PIN);
-    dataport |= _BV(LCD_RW_PIN);
-    pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
-
-    pcf8574_setoutputpinhigh(LCD_PCF8574_DEVICEID, LCD_E_PIN);
-	lcd_e_delay();
-	data = pcf8574_getoutputpin(LCD_PCF8574_DEVICEID, LCD_DATA0_PIN) << 4;     /* read high nibble first */
-	pcf8574_setoutputpinlow(LCD_PCF8574_DEVICEID, LCD_E_PIN);
-
-	lcd_e_delay();                       /* Enable 500ns low       */
-
+	
 	pcf8574_setoutputpinhigh(LCD_PCF8574_DEVICEID, LCD_E_PIN);
 	lcd_e_delay();
-	data |= pcf8574_getoutputpin(LCD_PCF8574_DEVICEID, LCD_DATA0_PIN) &0x0F;    /* read low nibble        */
+	data = pcf8574_getoutputpin(LCD_PCF8574_DEVICEID, LCD_DATA3_PIN) << 4; /* read high nibble first */
 	pcf8574_setoutputpinlow(LCD_PCF8574_DEVICEID, LCD_E_PIN);
-
-    return data;
+	lcd_e_delay(); /* Enable 500ns low */
+	pcf8574_setoutputpinhigh(LCD_PCF8574_DEVICEID, LCD_E_PIN);
+	lcd_e_delay();
+	data |= pcf8574_getoutputpin(LCD_PCF8574_DEVICEID, LCD_DATA3_PIN) &0x0F; /* read low nibble */
+	pcf8574_setoutputpinlow(LCD_PCF8574_DEVICEID, LCD_E_PIN);
+	
+	//uart_printf("%02x ", data); 
+	return data;
 }
 
 
@@ -158,17 +144,17 @@ loops while lcd is busy, returns address counter
 static uint8_t lcd_waitbusy(void)
 
 {
-    register uint8_t c;
-    
-    /* wait until busy flag is cleared */
-    while ( (c=lcd_read(0)) & (1<<LCD_BUSY)) {}
-    
-    /* the address counter is updated 4us after the busy flag is cleared */
-    delay(2);
+	register uint8_t c;
+	
+	/* wait until busy flag is cleared */
+	while ( (c=lcd_read(0)) & (1<<LCD_BUSY)) {}
+	
+	//delay(2000); 
+	/* the address counter is updated 4us after the busy flag is cleared */
+	delay(2);
 
-    /* now read the address counter */
-    return (lcd_read(0));  // return address counter
-    
+	/* now read the address counter */
+	return (lcd_read(0));  // return address counter
 }/* lcd_waitbusy */
 
 
@@ -288,9 +274,9 @@ Set illumination pin
 void lcd_led(uint8_t onoff)
 {
 	if(onoff)
-		dataport &= ~_BV(LCD_LED_PIN);
-	else
 		dataport |= _BV(LCD_LED_PIN);
+	else
+		dataport &= ~_BV(LCD_LED_PIN);
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
 }
 
@@ -384,6 +370,17 @@ void lcd_puts_p(const char *progmem_s)
 }/* lcd_puts_p */
 
 
+uint16_t lcd_printf(const char *fmt, ...){
+	char buf[32]; 
+	uint16_t n; 
+	va_list vl; 
+	va_start(vl, fmt);
+	n = vsnprintf(buf, sizeof(buf)-1, fmt, vl); 
+	va_end(vl);
+	lcd_puts(buf);
+	return n; 
+}
+
 /*************************************************************************
 Initialize display and select type of cursor 
 Input:    dispAttr LCD_DISP_OFF            display off
@@ -398,41 +395,40 @@ void lcd_init(uint8_t dispAttr)
 	//init pcf8574
 	pcf8574_init();
 	#endif
-
 	dataport = 0;
 	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
-
-    delay(16000);        /* wait 16ms or more after power-on       */
-
-    /* initial write to lcd is 8bit */
-    dataport |= _BV(LCD_DATA1_PIN);  // _BV(LCD_FUNCTION)>>4;
-    dataport |= _BV(LCD_DATA0_PIN);  // _BV(LCD_FUNCTION_8BIT)>>4;
-    pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
-
-    lcd_e_toggle();
-    delay(4992);         /* delay, busy flag can't be checked here */
-   
-    /* repeat last command */ 
-    lcd_e_toggle();      
-    delay(64);           /* delay, busy flag can't be checked here */
-    
-    /* repeat last command a third time */
-    lcd_e_toggle();      
-    delay(64);           /* delay, busy flag can't be checked here */
-
-    /* now configure for 4bit mode */
-    dataport &= ~_BV(LCD_DATA0_PIN);
-    pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
-    lcd_e_toggle();
-    delay(64);           /* some displays need this additional delay */
-    
-    /* from now the LCD only accepts 4 bit I/O, we can use lcd_command() */    
-
-    lcd_command(LCD_FUNCTION_DEFAULT);      /* function set: display lines  */
-
-    lcd_command(LCD_DISP_OFF);              /* display off                  */
-    lcd_clrscr();                           /* display clear                */
-    lcd_command(LCD_MODE_DEFAULT);          /* set entry mode               */
-    lcd_command(dispAttr);                  /* display/cursor control       */
+	
+	// wait for display to power up
+	delay(16000); 
+	
+	/* initial write to lcd is 8bit */
+	dataport |= 0x30; 
+	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
+	lcd_e_toggle();
+	
+	delay(4992); // delay, busy flag can't be checked here 
+	lcd_e_toggle();
+	
+	delay(64); 
+	// repeat last command third time
+	lcd_e_toggle();
+	delay(64); 
+	
+	/* now configure for 4bit mode */
+	dataport &= ~0xf0;
+	dataport |= 0x20; 
+	pcf8574_setoutput(LCD_PCF8574_DEVICEID, dataport);
+	lcd_e_toggle();
+	delay(64); // some displays need this additional delay
+	
+	lcd_command(LCD_FUNCTION_DEFAULT); 
+	lcd_command(LCD_DISP_OFF); 
+	lcd_clrscr();
+	lcd_command(LCD_MODE_DEFAULT); 
+	//lcd_command(dispAttr); 
+	
+	lcd_command(0x0c); 
+	lcd_command(0x06); 
+	lcd_data(0x48); 
 
 }/* lcd_init */
