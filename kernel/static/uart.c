@@ -466,15 +466,25 @@ void uart_puts(const char *s )
 		uart_putc(*s++);
 }/* uart_puts */
 
-
 uint16_t uart_printf(const char *fmt, ...){
 	if(!uart0) return 0;
 	
 	char buf[UART_TX_BUFFER_SIZE]; 
+	char format[UART_TX_BUFFER_SIZE]; 
+	
+	char ch = 0; 
+	uint16_t idx = 0; 
+	while((ch = pgm_read_byte(fmt++))){
+		format[idx] = ch; 
+		idx++; 
+	}
+	
+	format[idx] = 0; 
+	
 	uint16_t n; 
 	va_list vl; 
 	va_start(vl, fmt);
-	n = vsnprintf(buf, sizeof(buf)-1, fmt, vl); 
+	n = vsnprintf(buf, sizeof(buf)-1, format, vl); 
 	va_end(vl);
 	uart_puts(buf);
 	return n; 

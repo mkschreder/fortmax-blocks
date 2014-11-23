@@ -47,6 +47,7 @@ LICENSE:
  
 /**@{*/
 
+typedef char PROGMEM prog_char; 
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,7 +201,7 @@ extern void uart1_puts_p(const char *s );
 /** @brief  Macro to automatically put a string constant into program memory */
 #define uart1_puts_P(__s)       uart1_puts_p(PSTR(__s))
 
-extern uint16_t uart_printf(const char *fmt, ...);
+extern uint16_t uart_printf(const prog_char *fmt, ...);
 
 /**@}*/
 

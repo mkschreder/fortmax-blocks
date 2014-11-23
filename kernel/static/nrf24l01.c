@@ -264,8 +264,8 @@ void nrf24l01_read(uint8_t *data) {
 	uint8_t i = 0;
 	//read rx register
 	
-	uint8_t sreg = SREG; 
-	cli(); 
+	//uint8_t sreg = SREG; 
+	//cli(); 
 	
 	nrf24l01_CSNlo; //low CSN
 	spi_writereadbyte(NRF24L01_CMD_R_RX_PAYLOAD);
@@ -282,7 +282,7 @@ void nrf24l01_read(uint8_t *data) {
 	//power down
 	nrf24l01_powerdown(); 
 	
-	SREG = sreg; 
+	//SREG = sreg; 
 }
 
 /*
@@ -292,8 +292,8 @@ uint8_t nrf24l01_write(uint8_t *data) {
 	uint8_t i = 0;
 	uint8_t ret = 0;
 	
-	uint8_t sreg = SREG; 
-	cli(); 
+	//uint8_t sreg = SREG; 
+	//cli(); 
 	
 	//set tx mode
 	nrf24l01_setTX();
@@ -334,7 +334,7 @@ uint8_t nrf24l01_write(uint8_t *data) {
 	//set rx mode
 	nrf24l01_setRX();
 	
-	SREG = sreg; 
+	//SREG = sreg; 
 	
 	return ret;
 }

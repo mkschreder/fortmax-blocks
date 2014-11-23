@@ -42,11 +42,15 @@ typedef void (*rfnet_error_proc_t)(rfnet_error_t err, const char *desc);
 void rfnet_init(rfnet_mac_t addr, const char *root_pw, 
 	volatile uint8_t *outport, volatile uint8_t *ddrport, 
 	uint8_t cepin, uint8_t cspin, 
-	rfnet_request_handler_proc_t data_proc, rfnet_error_proc_t error_proc); 
+	rfnet_request_handler_proc_t data_proc, 
+	rfnet_response_handler_proc_t cb_resp, 
+	rfnet_error_proc_t error_proc); 
+	
 uint8_t rfnet_send(uint8_t *data, uint8_t size); 
 uint8_t rfnet_connect(rfnet_mac_t addr, const char *pw, 
 	rfnet_response_handler_proc_t data_ready); 
 void rfnet_process_events(void); 
+uint8_t rfnet_is_busy(); 
 
 
 #ifdef __cplusplus
