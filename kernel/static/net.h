@@ -100,7 +100,8 @@
    #define ICMP_TYPE_ECHOREQUEST_V 8
    //
    #define ICMP_TYPE_P 0x22
-   #define ICMP_CHECKSUM_P 0x24
+   #define ICMP_CHECKSUM_H_P 0x24
+   #define ICMP_CHECKSUM_L_P 0x25
 
    // ******* UDP *******
    #define UDP_HEADER_LEN	8

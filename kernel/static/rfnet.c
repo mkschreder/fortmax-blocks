@@ -86,8 +86,8 @@ static void packet_encrypt(aes256_ctx_t *ctx, struct packet *pack, encrypted_pac
 	memcpy(ep, pack, sizeof(struct packet));
 	// encrypt the whole packet 
 	// packets must always be sent fully encrypted
-	aes256_enc(ep, ctx);
-	aes256_enc(((uint8_t*)ep) + 16, ctx);
+	//aes256_enc(ep, ctx);
+	//aes256_enc(((uint8_t*)ep) + 16, ctx);
 }
 
 static uint8_t packet_decrypt(aes256_ctx_t *ctx, encrypted_packet_t *ep, struct packet *pack){
@@ -95,8 +95,8 @@ static uint8_t packet_decrypt(aes256_ctx_t *ctx, encrypted_packet_t *ep, struct 
 	struct packet *p = &pp; 
 	// dec() is destructive so we need to create local copy
 	memcpy(p, ep, sizeof(encrypted_packet_t)); 
-	aes256_dec(p, ctx);
-	aes256_dec(((uint8_t*)p) + 16, ctx);
+	//aes256_dec(p, ctx);
+	//aes256_dec(((uint8_t*)p) + 16, ctx);
 	uint8_t valid = 0; 
 	if(p->checksum == gen_crc16((uint8_t*)p, sizeof(struct packet) - sizeof(p->checksum)))
 		valid = 1; 
@@ -321,8 +321,8 @@ CON_STATE(ST_IDLE, con, ev, data, size){
 				
 				nrf24l01_settxaddr(con->peer_addr); 
 				nrf24l01_write((uint8_t*)&buffer); 
-				//nrf24l01_write((uint8_t*)&buffer); 
-				//uart_printf("sent to: "); 
+				nrf24l01_write((uint8_t*)&buffer); 
+				//uart_printf(PSTR("sent to: ")); 
 				//for(int c = 0; c < 5; c++) uart_printf("%02x", con->rx_addr[c]); 
 				
 				
@@ -455,7 +455,6 @@ void rfnet_init(
 void rfnet_process_events(void){
 	// check for any received packets
 	uint8_t pipe = 0xff; 
-	uint8_t max_packets = 10; 
 	
 	//poll radio for incoming packets
 	for(;;){
@@ -469,6 +468,7 @@ void rfnet_process_events(void){
 			//read buffer
 			nrf24l01_read((uint8_t*)&ep);
 			
+			uart_printf(PSTR("GOT PACKET from %d!\n"), pipe); 
 			if(pipe == BCAST_PIPE){
 				// todo
 				continue; 
@@ -478,13 +478,14 @@ void rfnet_process_events(void){
 			 
 			// avoid decrypting duplicate packets
 			uint32_t sig = *((uint32_t*)&ep); 
-			if(con->last_sig != sig){
+			//if(con->last_sig != sig){
 				// try decrypting the packet using the connection key
 				if(!packet_decrypt(&con->enc_key, &ep, &pack)){
+					uart_puts("DECRFAIL!\n"); 
 					continue; 
 				}
 				con->last_sig = sig; 
-			}
+			//}
 			
 			// generate appropriate event for the connection
 			if(pack.type & PTF_SRT){

@@ -1,3 +1,13 @@
+/** 
+ * 	Maintainer: Martin K. Schröder 
+ * 
+ *  Thanks for the code from ip_arp_udp_tcp.c!
+ * 
+ *  Date: 2014
+ * 
+ * 	info@fortmax.se
+ */
+ 
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include "net.h"
@@ -227,39 +237,24 @@ static void _updateIPChecksum(void)
 //*****************************************************************************
 // make a return ip header from a received ip packet
 // buf[IP_SRC_P + i]
-void _initIP(ip_addr_t dst_ip)
-{
-	memcpy(eth->buf + IP_DST_P, dst_ip, sizeof(ip_addr_t)); 
-	memcpy(eth->buf + IP_SRC_P, eth->ipaddr, sizeof(ip_addr_t)); 
-/*
-	while(i < 4)
-
-	{
-		buf[IP_DST_P + i] = buf[IP_SRC_P + i];
-		buf[IP_SRC_P + i] = ipaddr[i];
-		i++;
-	}*/
-	_updateIPChecksum();
-}
-
-//*****************************************************************************
-// make a new ip header for tcp packet
-// make a return ip header from a received ip packet
-void _initTCP(uint16_t len, ip_addr_t dst_ip)
+void _initIP(ip_addr_t dst_ip, uint16_t totlen)
 {
 	uint8_t *buf = eth->buf; 
 	
-	_initIP(dst_ip); 
+	buf[ETH_TYPE_H_P] = ETHTYPE_IP_H_V;
+	buf[ETH_TYPE_L_P] = ETHTYPE_IP_L_V;
 	
-	// set ipv4 and header length
+	memcpy(eth->buf + IP_DST_P, dst_ip, sizeof(ip_addr_t)); 
+	memcpy(eth->buf + IP_SRC_P, eth->ipaddr, sizeof(ip_addr_t)); 
+	
 	buf[IP_P] = IP_V4_V | IP_HEADER_LENGTH_V;
 
 	// set TOS to default 0x00
 	buf[IP_TOS_P ] = 0x00;
 
 	// set total length
-	buf[IP_TOTLEN_H_P] = (len >> 8) & 0xff;
-	buf[IP_TOTLEN_L_P] = len & 0xff;
+	buf[IP_TOTLEN_H_P] = (totlen >> 8) & 0xff;
+	buf[IP_TOTLEN_L_P] = totlen & 0xff;
 
 	// set packet identification
 	buf[IP_ID_H_P] = (eth->ip_identifier >> 8) & 0xff;
@@ -273,6 +268,18 @@ void _initTCP(uint16_t len, ip_addr_t dst_ip)
 	// set Time To Live
 	buf[IP_TTL_P] = 128;
 
+	_updateIPChecksum();
+}
+
+//*****************************************************************************
+// make a new ip header for tcp packet
+// make a return ip header from a received ip packet
+void _initTCP(uint16_t len, ip_addr_t dst_ip)
+{
+	uint8_t *buf = eth->buf; 
+	
+	_initIP(dst_ip, len); 
+	
 	// set ip packettype to tcp/udp/icmp...
 	buf[IP_PROTO_P] = IP_PROTO_TCP_V;
 	
@@ -377,7 +384,12 @@ void _initARPResponse(void)
 {
 	uint8_t *buf = eth->buf; 
 	
-	_initEthernet(&eth->buf[ETH_SRC_MAC]); 
+	_initEthernet(buf + ETH_SRC_MAC); 
+	//_initIP(buf + IP_SRC_P, 0);
+	
+	// set arp packet type
+	eth->buf[ETH_TYPE_H_P] = ETHTYPE_ARP_H_V;
+	eth->buf[ETH_TYPE_L_P] = ETHTYPE_ARP_L_V; 
 	
 	buf[ETH_ARP_OPCODE_H_P] = ETH_ARP_OPCODE_REPLY_H_V;
 	buf[ETH_ARP_OPCODE_L_P] = ETH_ARP_OPCODE_REPLY_L_V;
@@ -396,18 +408,24 @@ void _initARPResponse(void)
 void _initICMP(void)
 {
 	uint8_t *buf = eth->buf; 
+	uint16_t totlen = ((uint16_t)buf[IP_TOTLEN_H_P] << 8) | buf[IP_TOTLEN_L_P]; 
+	
 	_initEthernet(buf + ETH_SRC_MAC);
-	_initIP(buf + IP_SRC_P);
+	_initIP(buf + IP_SRC_P, totlen);
 
 	buf[ICMP_TYPE_P] = ICMP_TYPE_ECHOREPLY_V;
 	
-	// we changed only the icmp.type field from request(=8) to reply(=0).
-	// we can therefore easily correct the checksum:
-	if (buf[ICMP_CHECKSUM_P] > (0xff - 0x08)){
-		buf[ICMP_CHECKSUM_P + 1]++;
-	}
-	buf[ICMP_CHECKSUM_P] += 0x08;
-	
+	//_updateIPChecksum(); 
+	if (buf[ICMP_CHECKSUM_H_P] > (0xFF-0x08))
+		buf[ICMP_CHECKSUM_L_P]++;
+	buf[ICMP_CHECKSUM_H_P] += 0x08;
+    /*
+	uint16_t ck = Checksum(buf + IP_HEADER_LEN + ETH_HEADER_LEN, 24, 0); 
+	buf[ICMP_CHECKSUM_H_P] = ck >> 8; 
+	buf[ICMP_CHECKSUM_L_P] = ck & 0xff; 
+	*/
+	//memset(buf + IP_HEADER_LEN + ETH_HEADER_LEN + 8, 0xdd, 10); 
+	eth->len = ETH_HEADER_LEN + totlen; 
 	//
 	//enc28j60_PacketSend(len, buf);
 }
@@ -426,11 +444,8 @@ void _initUDPResponse(char *data, uint8_t datalen, uint16_t port)
 	if (datalen > 220){
 		datalen = 220;
 	}
-	// total length field in the IP header must be set:
-	buf[IP_TOTLEN_H_P] = 0;
-	buf[IP_TOTLEN_L_P] = IP_HEADER_LEN + UDP_HEADER_LEN + datalen;
 
-	_initIP(buf + IP_SRC_P);
+	_initIP(buf + IP_SRC_P, IP_HEADER_LEN + UDP_HEADER_LEN + datalen);
 
 	buf[UDP_DST_PORT_H_P] = port >> 8;
 	buf[UDP_DST_PORT_L_P] = port & 0xff;
@@ -462,49 +477,54 @@ uint8_t _ipOnLan(ip_addr_t src, ip_addr_t dst){
 	}
 	return 1;
 }
-/*
-void ip_udpPrepare (struct ethernet *eth, uint16_t sport, const ip_addr_t dip, uint16_t dport) {
-	if(is_lan(ipaddr, dip))  						   // this works because both dns mac and destinations mac are stored in same variable - destmacaddr
-		ip_setDstAddr(eth->dstmacaddr, dip);			   // at different times. The program could have separate variable for dns mac, then here should be 
-	else										   // checked if dip is dns ip and separately if dip is hisip and then use correct mac.
-		ip_setDstAddr(eth->gwmacaddr, dip);
-    // see http://tldp.org/HOWTO/Multicast-HOWTO-2.html
-    // multicast or broadcast address, https://github.com/jcw/ethercard/issues/59
-    if ((dip[0] & 0xF0) == 0xE0 || *((unsigned long*) dip) == 0xFFFFFFFF)
-        EtherCard::copyMac(gPB + ETH_DST_MAC, allOnes);
-    gPB[ETH_TYPE_H_P] = ETHTYPE_IP_H_V;
-    gPB[ETH_TYPE_L_P] = ETHTYPE_IP_L_V;
-    memcpy_P(gPB + IP_P,iphdr,9);
-    gPB[IP_TOTLEN_H_P] = 0;
-    gPB[IP_PROTO_P] = IP_PROTO_UDP_V;
-    gPB[UDP_DST_PORT_H_P] = (dport>>8);
-    gPB[UDP_DST_PORT_L_P] = dport;
-    gPB[UDP_SRC_PORT_H_P] = (sport>>8);
-    gPB[UDP_SRC_PORT_L_P] = sport;
-    gPB[UDP_LEN_H_P] = 0;
-    gPB[UDP_CHECKSUM_H_P] = 0;
-    gPB[UDP_CHECKSUM_L_P] = 0;
-}
 
-void EtherCard::udpTransmit (uint16_t datalen) {
-    gPB[IP_TOTLEN_H_P] = (IP_HEADER_LEN+UDP_HEADER_LEN+datalen) >> 8;
-    gPB[IP_TOTLEN_L_P] = IP_HEADER_LEN+UDP_HEADER_LEN+datalen;
-    fill_ip_hdr_checksum();
-    gPB[UDP_LEN_H_P] = (UDP_HEADER_LEN+datalen) >>8;
-    gPB[UDP_LEN_L_P] = UDP_HEADER_LEN+datalen;
-    fill_checksum(UDP_CHECKSUM_H_P, IP_SRC_P, 16 + datalen,1);
-    packetSend(UDP_HEADER_LEN+IP_HEADER_LEN+ETH_HEADER_LEN+datalen);
+void ip_send_udp(const char *data, uint8_t datalen, 
+	uint16_t sport, ip_mac_t dmac, ip_addr_t dip, uint16_t dport) {
+	
+	uint8_t *buf = eth->buf; 
+	
+	if (datalen>220)
+			datalen = 220;
+			
+	uint16_t totlen = (IP_HEADER_LEN+UDP_HEADER_LEN+datalen); 
+	
+	_initEthernet(dmac); 
+	
+	_initIP(dip, totlen); 
+	
+	// see http://tldp.org/HOWTO/Multicast-HOWTO-2.html
+	// multicast or broadcast address, https://github.com/jcw/ethercard/issues/59
+	/*if ((dip[0] & 0xF0) == 0xE0 || *((unsigned long*) dip) == 0xFFFFFFFF)
+			EtherCard::copyMac(buf + ETH_DST_MAC, allOnes);*/
+	
+	//memcpy_P(buf + IP_P,iphdr,9);
+	
+	buf[IP_PROTO_P] = IP_PROTO_UDP_V;
+	
+	buf[UDP_DST_PORT_H_P] = (dport>>8);
+	buf[UDP_DST_PORT_L_P] = dport;
+	buf[UDP_SRC_PORT_H_P] = (sport>>8);
+	buf[UDP_SRC_PORT_L_P] = sport;
+	buf[UDP_LEN_H_P] = 0;
+	buf[UDP_CHECKSUM_H_P] = 0;
+	buf[UDP_CHECKSUM_L_P] = 0;
+	
+	memcpy(buf + UDP_DATA_P, data, datalen);
+	
+	// total length field in the IP header must be set:
+	
+	_updateIPChecksum();
+	
+	buf[UDP_LEN_H_P] = (UDP_HEADER_LEN+datalen) >>8;
+	buf[UDP_LEN_L_P] = UDP_HEADER_LEN+datalen;
+	uint16_t ck = Checksum(&buf[IP_SRC_P], 16 + datalen, 1);
+	buf[UDP_CHECKSUM_H_P] = ck >> 8;
+	buf[UDP_CHECKSUM_L_P] = ck & 0xff;
+   
+	eth->len = UDP_HEADER_LEN + IP_HEADER_LEN + ETH_HEADER_LEN + datalen; 
+	
+	ip_send(); 
 }
-
-void EtherCard::sendUdp (const char *data, uint8_t datalen, uint16_t sport,
-                         const uint8_t *dip, uint16_t dport) {
-    udpPrepare(sport, dip, dport);
-    if (datalen>220)
-        datalen = 220;
-    memcpy(gPB + UDP_DATA_P, data, datalen);
-    udpTransmit(datalen);
-}
-*/
 
 //*****************************************************************************
 void _initTCPSynACK(void)
@@ -514,12 +534,7 @@ void _initTCPSynACK(void)
 
 	_initEthernet(buf + ETH_SRC_MAC);
 
-	// total length field in the IP header must be set:
-	// 20 bytes IP + 24 bytes (20tcp+4tcp options)
-	buf[IP_TOTLEN_H_P] = 0;
-	buf[IP_TOTLEN_L_P] = IP_HEADER_LEN + TCP_HEADER_LEN_PLAIN + 4;
-	
-	_initIP(buf + IP_SRC_P);
+	_initIP(buf + IP_SRC_P, IP_HEADER_LEN + TCP_HEADER_LEN_PLAIN + 4);
 
 	buf[TCP_FLAG_P] = TCP_FLAGS_SYNACK_V;
 	
@@ -611,7 +626,7 @@ uint16_t _initTCPData (uint16_t pos, const char *s)
 //*****************************************************************************
 // Make just an ack packet with no tcp data inside
 // This will modify the eth/ip/tcp header 
-void _initTCPAck ()
+void _initTCPAck (void)
 {
 	uint16_t j;
 	uint8_t *buf = eth->buf; 
@@ -629,11 +644,7 @@ void _initTCPAck ()
 
 	// total length field in the IP header must be set:
 	// 20 bytes IP + 20 bytes tcp (when no options) 
-	j = IP_HEADER_LEN + TCP_HEADER_LEN_PLAIN;
-	buf[IP_TOTLEN_H_P] = j >> 8;
-	buf[IP_TOTLEN_L_P] = j & 0xff;
-
-	_initIP(buf + IP_SRC_P);
+	_initIP(buf + IP_SRC_P, IP_HEADER_LEN + TCP_HEADER_LEN_PLAIN);
 
 	// calculate the checksum, len=8 (start from ip.src) + TCP_HEADER_LEN_PLAIN + data len
 	j = Checksum(&buf[IP_SRC_P], 8 + TCP_HEADER_LEN_PLAIN, 2);
@@ -702,9 +713,6 @@ void ip_send(void){
 }
 
 void ip_process_packets(void){
-	uint16_t dat_p = 0;
-	uint8_t send;
-  
 	while (1)
 	{
 		eth->len = enc28j60_PacketReceive(eth->max_buffer_size, eth->buf);
@@ -713,7 +721,6 @@ void ip_process_packets(void){
 
 		//uart_printf(PSTR("Plen: %d\n"), eth->len); 
 		
-		uint8_t *buf = eth->buf; 
 		// arp is broadcast if unknown but a host may also verify the mac address by sending it to a unicast address.
 		if (_isArpPacketAddressedToUs())
 		{

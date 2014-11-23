@@ -50,7 +50,7 @@ uint8_t rfnet_send(uint8_t *data, uint8_t size);
 uint8_t rfnet_connect(rfnet_mac_t addr, const char *pw, 
 	rfnet_response_handler_proc_t data_ready); 
 void rfnet_process_events(void); 
-uint8_t rfnet_is_busy(); 
+uint8_t rfnet_is_busy(void); 
 
 
 #ifdef __cplusplus
