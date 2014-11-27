@@ -18,7 +18,6 @@
 */
 
 #include "ili9340.h"
-#include "spi.h"
 
 #include <stdio.h>
 #include <stdlib.h>

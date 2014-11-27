@@ -13,7 +13,7 @@ Please refer to LICENSE file for licensing information.
 
 #include "bh1750.h"
 
-#include BH1750_I2CFLEURYPATH
+#include <i2c.h>
 
 /*
  * init bh1750

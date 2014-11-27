@@ -12,7 +12,7 @@ Please refer to LICENSE file for licensing information.
 #include <avr/pgmspace.h>
 #include <stdarg.h>
 
-#include "pcf8574.h"
+#include <io/pcf8574.h>
 
 #include "lcdpcf8574.h"
 
@@ -110,7 +110,7 @@ Input:    rs     1: read data
                  0: read busy flag / address counter
 Returns:  byte read from LCD controller
 *************************************************************************/
-#include "uart.h"
+
 static uint8_t lcd_read(uint8_t rs) 
 {
   uint8_t data = 0;

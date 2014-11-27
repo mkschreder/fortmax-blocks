@@ -2,7 +2,7 @@
 
 #include <avr/io.h>
 #include "crypto/aes/aes.h"
-#include "stack.h"
+//#include "stack.h"
 
 #ifdef __cplusplus
 extern "C" {

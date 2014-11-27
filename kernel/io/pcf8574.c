@@ -15,7 +15,7 @@ Please refer to LICENSE file for licensing information.
 #include "pcf8574.h"
 
 //path to i2c fleury lib
-#include PCF8574_I2CFLEURYPATH
+#include <i2c.h>
 
 /*
  * initialize

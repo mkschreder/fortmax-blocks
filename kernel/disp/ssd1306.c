@@ -16,8 +16,8 @@
 #endif
 
 #include <stdlib.h>
+#include <i2c.h>
 
-#include "i2cmaster.h"
 #include "ssd1306.h"
 #include "ssd1306_priv.h"
 

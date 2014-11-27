@@ -20,7 +20,7 @@ Please refer to LICENSE file for licensing information.
 #endif
 
 //path to i2c fleury lib
-#include WIINUNCHUCK_I2CFLEURYPATH
+#include <i2c.h>
 
 volatile uint8_t wiinunchuck_joyX = 0;
 volatile uint8_t wiinunchuck_joyY = 0;

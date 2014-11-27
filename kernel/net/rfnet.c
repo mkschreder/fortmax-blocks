@@ -13,10 +13,8 @@
 
 #include "crypto/sha256.h"
 //#include "random.h"
-#include "nrf24l01.h"
+#include <radio/nrf24l01.h>
 #include "rfnet.h"
-#include "time.h"
-#include "uart.h"
 
 #define RFNET_RETRY_COUNT 		20
 #define RFNET_RETRY_TIMEOUT 	2000
@@ -156,7 +154,7 @@ void rfnet_process_events(void){
 		//read buffer
 		nrf24l01_read((uint8_t*)pack);
 		
-		uart_printf(PSTR("GOT PACKET from %d!\n"), pipe); 
+		//uart_printf(PSTR("GOT PACKET from %d!\n"), pipe); 
 		
 		if(!packet_decrypt(&net->enc_key, pack)){
 			uart_puts("DECRFAIL!\n"); 

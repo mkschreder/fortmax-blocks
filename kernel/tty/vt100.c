@@ -23,7 +23,7 @@
 #include <stdlib.h>
 
 #include "vt100.h"
-#include "ili9340.h"
+#include <disp/ili9340.h>
 
 #define KEY_ESC 0x1b
 #define KEY_DEL 0x7f

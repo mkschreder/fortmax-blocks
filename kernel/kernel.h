@@ -5,25 +5,28 @@
 
 #include <inttypes.h>
 
-#include "random.h"
-#include "time.h"
+#include "arch/m328p.h"
 
 //#include "accel_docalibration.h"
 
-#ifdef ACS712
-#include "acs712.h"
+#ifdef __ATMega328P__
+#include "arch/m328p/adc.h"
 #endif
 
-#ifdef ADC
-#include "adc.h"
+#ifdef I2CMASTER
+#include "arch/m328p/i2cmaster.h"
+#endif
+
+#ifdef ACS712
+#include "sensors/acs712.h"
 #endif
 
 #ifdef ADXL345
-#include "adxl345.h"
+#include "sensors/adxl345.h"
 #endif
 
 #ifdef ATM1001
-#include "amt1001.h"
+#include "sensors/amt1001.h"
 #endif
 
 //#include "audioget.h"
@@ -32,14 +35,14 @@
 #endif
 
 #ifdef BH1750
-#include "bh1750.h"
+#include "sensors/bh1750.h"
 #endif
 
 //#include "bldcsensored.h"
 //#include "bldcsensorless.h"
 
 #ifdef BMP085
-#include "bmp085.h"
+#include "sensors/bmp085.h"
 #endif
 
 //#include "dcmotor.h"
@@ -47,15 +50,15 @@
 //#include "dcmotorpwmsoft.h"
 
 #ifdef DHT11
-#include "dht.h"
+#include "sensors/dht.h"
 #endif
 
 #ifdef DS18B20
-#include "ds18b20.h"
+#include "sensors/ds18b20.h"
 #endif
 
 #ifdef ENC28J60
-#include "enc28j60.h"
+#include "net/enc28j60.h"
 #endif
 
 #ifdef FFT
@@ -63,24 +66,20 @@
 #endif
 
 #ifdef FS300A
-#include "fs300a.h"
+#include "sensors/fs300a.h"
 #endif
 
 //#include "gyro_docalibration.h"
 #ifdef HCSR04
-#include "hcsr04.h"
+#include "sensors/hcsr04.h"
 #endif
 
 #ifdef HMC5883L
-#include "hmc5883l.h"
-#endif
-
-#ifdef I2CMASTER
-#include "i2cmaster.h"
+#include "sensors/hmc5883l.h"
 #endif
 
 #ifdef I2CSLAVE
-#include "twi_slave.h"
+#include "arch/m328p/twi_slave.h"
 #endif
 
 //#include "i2csoft.h"
@@ -88,27 +87,27 @@
 //#include "i2csw_slave.h"
 
 #ifdef ILI9340
-#include "ili9340.h"
+#include "disp/ili9340.h"
 #endif
 
 #ifdef IMU10DOF01
-#include "imu10dof01.h"
+#include "sensors/imu10dof01.h"
 #endif
 
 #ifdef L3G4200D
-#include "l3g4200d.h"
+#include "sensors/l3g4200d.h"
 #endif
 
 #ifdef L74HC165
-#include "l74hc165.h"
+#include "io/l74hc165.h"
 #endif
 
 #ifdef L74HC4051
-#include "l74hc4051.h"
+#include "io/l74hc4051.h"
 #endif
 
 #ifdef L74HC595
-#include "l74hc595.h"
+#include "io/l74hc595.h"
 #endif
 
 //#include "lcdpcf8574.h"
@@ -116,60 +115,60 @@
 //#include "ledmatrix88.h"
 //#include "magn_docalibration.h"
 #ifdef MFRC522
-#include "mfrc522.h"
+#include "sensors/mfrc522.h"
 #endif
 
 #ifdef MMA7455
-#include "mma7455.h"
+#include "sensors/mma7455.h"
 #endif
 
 #ifdef MPU6050
-#include "mpu6050.h"
-#include "mpu6050registers.h"
+#include "sensors/mpu6050.h"
+#include "sensors/mpu6050registers.h"
 #endif
 
 #ifdef NRF24L01
-#include "nrf24l01.h"
-#include "nrf24l01registers.h"
+#include "radio/nrf24l01.h"
+#include "radio/nrf24l01registers.h"
 #endif
 
 //#include "ntctemp.h"
 #ifdef PCF8574
-#include "pcf8574.h"
+#include "io/pcf8574.h"
 #endif
 
 //#include "pwm.h"
 //#include "pwmcd4017.h"
 //#include "pwmcd4017servo.h"
 #ifdef RFNET
-#include "rfnet.h"
+#include "net/rfnet.h"
 #endif
 
 //#include "sevseg.h"
 //#include "softi2c.h"
 #ifdef SPI
-#include "spi.h"
+#include "arch/m328p/spi.h"
 #endif
 
 #ifdef SSD1306
-#include "ssd1306.h"
-#include "ssd1306_priv.h"
+#include "disp/ssd1306.h"
+#include "disp/ssd1306_priv.h"
 #endif
 
 //#include "stepper02.h"
 //#include "stepper04multi.h"
 #if defined(TCPIP) | defined(TCP) | defined(UDP)
-#include "tcpip.h"
+#include "net/tcpip.h"
 #endif
 
 //#include "temt6000.h"
 //#include "tsl235.h"
 #ifdef UART
-#include "uart.h"
+#include "arch/m328p/uart.h"
 #endif
 
 #ifdef VT100
-#include "vt100.h"
+#include "tty/vt100.h"
 #endif
 
 //#include "wiinunchuck.h"

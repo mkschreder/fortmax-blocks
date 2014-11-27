@@ -19,8 +19,7 @@ Please refer to LICENSE file for licensing information.
 #include <string.h>
 #endif
 
-//path to i2c fleury lib
-#include ADXL345_I2CFLEURYPATH
+#include <i2c.h>
 
 #if ADXL345_LOWPASSENABLED == 1
 static double axold = 0;

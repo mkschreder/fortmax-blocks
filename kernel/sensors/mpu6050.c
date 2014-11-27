@@ -21,8 +21,7 @@ Please refer to LICENSE file for licensing information.
 #include <math.h>  //include libm
 #endif
 
-//path to i2c fleury lib
-#include MPU6050_I2CFLEURYPATH
+#include <i2c.h>
 
 volatile uint8_t buffer[14];
 

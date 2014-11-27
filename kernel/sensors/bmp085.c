@@ -22,8 +22,7 @@ static int bmp085_regac1, bmp085_regac2, bmp085_regac3, bmp085_regb1, bmp085_reg
 static unsigned int bmp085_regac4, bmp085_regac5, bmp085_regac6;
 static long bmp085_rawtemperature, bmp085_rawpressure;
 
-//path to i2c fleury lib
-#include BMP085_I2CFLEURYPATH
+#include <i2c.h>
 
 /*
  * i2c write

@@ -15,7 +15,6 @@
 #include "tcpip.h"
 #include <string.h>
 #include <util/delay.h>
-#include "uart.h"
 
 struct ethernet {
 	ip_mac_t macaddr;
@@ -33,7 +32,6 @@ struct ethernet {
 
 static struct ethernet _eth; 
 static struct ethernet *eth = &_eth; 
-
 
 //*****************************************************************************
 // The Ip checksum is calculated over the ip header only starting
@@ -713,6 +711,8 @@ void ip_send(void){
 }
 
 void ip_process_packets(void){
+	if(!eth->buf) return; 
+	
 	while (1)
 	{
 		eth->len = enc28j60_PacketReceive(eth->max_buffer_size, eth->buf);

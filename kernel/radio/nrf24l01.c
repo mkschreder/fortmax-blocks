@@ -8,19 +8,16 @@ Please refer to LICENSE file for licensing information.
 */
 
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/delay.h>
+#include <i2c.h>
+
 #include <string.h>
 #include <stdio.h>
 
+#include <util/delay.h>
 #include <avr/pgmspace.h>
 
 #include "nrf24l01.h"
 #include "nrf24l01registers.h"
-
-//include spi library functions
-#include NRF24L01_SPIPATH
 
 static volatile uint8_t *nrf_port = 0, *nrf_ddr = 0;
 static uint8_t nrf_ce_pin = 0, nrf_cs_pin = 0;

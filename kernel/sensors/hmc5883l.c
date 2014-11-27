@@ -11,11 +11,9 @@ Please refer to LICENSE file for licensing information.
 #include <stdlib.h>
 #include <avr/io.h>
 #include <util/delay.h>
+#include <i2c.h>
 
 #include "hmc5883l.h"
-
-//path to i2c fleury lib
-#include HMC5883L_I2CFLEURYPATH
 
 static double hmc5883l_scale = 0;
 

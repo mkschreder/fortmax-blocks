@@ -14,8 +14,7 @@ Please refer to LICENSE file for licensing information.
 
 #include "l3g4200d.h"
 
-//path to i2c fleury lib
-#include L3G4200D_I2CFLEURYPATH
+#include <i2c.h>
 
 //offset variables
 volatile double l3g4200d_offsetx = 0.0f;

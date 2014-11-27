@@ -17,8 +17,7 @@ Please refer to LICENSE file for licensing information.
 
 #include "audioget.h"
 
-#include "adc.h"
-
+#include "arch/m328p/adc.h"
 
 #if AUDIOGET_USETIMER == 1
 
