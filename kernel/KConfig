@@ -1,0 +1,40 @@
+menu "Configure firmware"
+choice 
+	prompt "Device architecture"
+	default ATMEGA328P
+	
+	config ATMEGA328P
+		bool "ATMega328P controller"
+	
+	config ARDUINO_PROMINI
+		bool "Arduino Pro-Mini module"
+		
+endchoice 
+
+choice
+	prompt "Target microprocessor board"
+	default MULTIWII
+
+	config MULTIWII
+		depends on ATMEGA328P
+		bool "Multiwii V2.5 Flight Controller"
+
+	config ARDURADIO
+		depends on ARDUINO_PROMINI
+		bool "Fortmax custom arduino radio board"
+		
+endchoice
+
+menu "Device driver support"
+	source crypto/KConfig
+	source disp/KConfig
+	source hid/KConfig
+	source io/KConfig
+	source motors/KConfig
+	source net/KConfig
+	source radio/KConfig
+	source rfid/KConfig
+	source sensors/KConfig
+	source tty/KConfig
+endmenu
+endmenu

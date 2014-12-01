@@ -1,5 +1,9 @@
 #pragma once 
 
+#ifdef __cplusplus 
+extern "C" {
+#endif
+
 uint16_t StackCount(void); 
 
 #define ASSERT_CONCAT_(a, b) a##b
@@ -15,4 +19,8 @@ uint16_t StackCount(void);
    * compiled with gcc -combine -fwhole-program.  */
   #define STATIC_ASSERT(e,m) \
     { enum { ASSERT_CONCAT(assert_line_, __LINE__) = 1/(!!(e)) }; }
+#endif
+
+#ifdef __cplusplus
+}
 #endif

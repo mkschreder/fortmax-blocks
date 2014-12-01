@@ -6,6 +6,7 @@
 
 #include <util/crc16.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 
 #include "m328p/adc.h"
 #include "m328p/i2cmaster.h"

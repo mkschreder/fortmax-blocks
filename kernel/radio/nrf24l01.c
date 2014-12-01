@@ -19,6 +19,8 @@ Please refer to LICENSE file for licensing information.
 #include "nrf24l01.h"
 #include "nrf24l01registers.h"
 
+#include <arch/soc.h>
+
 static volatile uint8_t *nrf_port = 0, *nrf_ddr = 0;
 static uint8_t nrf_ce_pin = 0, nrf_cs_pin = 0;
 

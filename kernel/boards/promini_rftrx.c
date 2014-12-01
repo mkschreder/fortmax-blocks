@@ -17,8 +17,7 @@ struct board {
 
 static struct board _brd; 
 static struct board *brd = &_brd; 
-static struct uart uart; 
-static struct pwm pwm; 
+static struct uart uart;
 
 void brd_init(void){
 	// radio ce and cs pins

@@ -2,6 +2,7 @@
 #include <util/delay.h>
 
 #include "enc28j60.h"
+#include <arch/soc.h>
 
 static uint8_t enc28j60_Bank;
 static uint16_t NextPacketPtr;

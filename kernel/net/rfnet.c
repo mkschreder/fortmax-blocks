@@ -14,6 +14,8 @@
 #include "crypto/sha256.h"
 //#include "random.h"
 #include <radio/nrf24l01.h>
+#include <arch/soc.h>
+
 #include "rfnet.h"
 
 #define RFNET_RETRY_COUNT 		20

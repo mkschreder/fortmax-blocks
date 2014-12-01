@@ -442,6 +442,7 @@ void uart_putc(unsigned char data)
 	
 	tmphead  = (uart0->UART_TxHead + 1) & UART_TX_BUFFER_MASK;
 	
+	//if(tmphead == uart0->UART_TxTail) return; 
 	while ( tmphead == uart0->UART_TxTail ); // wait for free space
 
 	uart0->UART_TxBuf[tmphead] = data;
@@ -469,7 +470,7 @@ void uart_puts(const char *s )
 uint16_t uart_printf(const prog_char *fmt, ...){
 	if(!uart0) return 0;
 	
-	char buf[UART_TX_BUFFER_SIZE]; 
+	char buf[UART_TX_BUFFER_SIZE * 2]; 
 	
 	uint16_t n; 
 	va_list vl; 

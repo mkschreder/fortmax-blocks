@@ -29,6 +29,8 @@
 #include <limits.h>
 #include <math.h>
 
+#include <arch/soc.h>
+
 #define SPI_DDR DDRB
 #define SPI_PORT PORTB
 #define SPI_MISO PB4

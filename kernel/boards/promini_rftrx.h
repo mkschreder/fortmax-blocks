@@ -1,5 +1,9 @@
 #pragma once 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef BOARD 
 #error "Only one board file can be included in a project!"
 #endif
@@ -62,3 +66,7 @@ void brd_process_events(void);
 
 void set_pin(uint8_t pin, uint16_t value);
 uint16_t get_pin(uint8_t pin);
+
+#ifdef __cplusplus
+}
+#endif

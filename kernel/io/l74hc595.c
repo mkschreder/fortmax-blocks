@@ -16,7 +16,7 @@ Please refer to LICENSE file for licensing information.
 #include <util/delay.h>
 
 #include "l74hc595.h"
-#include <i2c.h>
+#include <arch/soc.h>
 
 #define L74HC595_STCLo {L74HC595_PORT &= ~_BV(L74HC595_STCPIN);}
 #define L74HC595_STCHi {L74HC595_PORT |= _BV(L74HC595_STCPIN);}

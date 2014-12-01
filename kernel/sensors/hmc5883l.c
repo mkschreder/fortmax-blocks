@@ -21,6 +21,8 @@ static double hmc5883l_scale = 0;
  * init the hmc5883l
  */
 void hmc5883l_init(void) {
+	_delay_ms(50); 
+	
 	//set scale
 	hmc5883l_scale = 0;
 	uint8_t regValue = 0x00;
@@ -50,7 +52,21 @@ void hmc5883l_init(void) {
 		hmc5883l_scale = 4.35;
 	#endif
 
-	//setting is in the top 3 bits of the register.
+	
+  _delay_ms(50);  //Wait before start
+  
+  // leave test mode
+  i2c_start_wait(HMC5883L_ADDR | I2C_WRITE); 
+  i2c_write(HMC5883L_CONFREGA); 
+  i2c_write(0x70); //Configuration Register A  -- 0 11 100 00  num samples: 8 ; output rate: 15Hz ; normal measurement mode
+  i2c_write(HMC5883L_CONFREGB); 
+  i2c_write(0x20); //Configuration Register B  -- 001 00000    configuration gain 1.3Ga
+  i2c_write(HMC5883L_MODEREG); 
+  i2c_write(0x00); //Mode register             -- 000000 00    continuous Conversion Mode
+  i2c_stop(); 
+  _delay_ms(100);
+  
+	/*//setting is in the top 3 bits of the register.
 	regValue = regValue << 5;
     i2c_start_wait(HMC5883L_ADDR | I2C_WRITE);
     i2c_write(HMC5883L_CONFREGB);
@@ -61,7 +77,7 @@ void hmc5883l_init(void) {
 	i2c_start_wait(HMC5883L_ADDR | I2C_WRITE);
 	i2c_write(HMC5883L_MODEREG);
 	i2c_write(HMC5883L_MEASUREMODE);
-	i2c_stop();
+	i2c_stop();*/
 }
 
 /*
@@ -113,7 +129,4 @@ void hmc5883l_getdata(double *mx, double *my, double *mz) {
 	*my = myraw;
 	*mz = mzraw; 
 	#endif
-
-
-
 }
