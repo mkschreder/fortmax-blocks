@@ -6,16 +6,18 @@
 *
 * Released under GPLv3
 */
-
+ 
 
 #ifndef _SPI_H_
 #define _SPI_H_
 
-#ifdef __cplusplus
+#ifdef __cplusplus 
 extern "C" {
 #endif
 
-#include <avr/io.h>
+#include "autoconf.h"
+
+#include <avr/io.h>  
 
 //spi ports
 #define SPI_DDR DDRB

@@ -32,7 +32,15 @@
 #include <stdint.h>
 #include <string.h> /* for memcpy, memmove, memset */
 #include "sha256.h"
+
+#ifdef CONFIG_AVR
 #include <avr/pgmspace.h>
+#else 
+#define PROGMEM
+uint32_t pgm_read_dword(const uint32_t *addr){
+	return *addr; 
+}
+#endif 
 
 #define LITTLE_ENDIAN
 
@@ -62,7 +70,7 @@ void sha256_init(sha256_ctx_t *state){
 	state->length=0;
 	uint32_t *p = state->h; 
 	for(int c = 0; c < 8; c++){
-		*p = pgm_read_dword(sha256_init_vector_p[c]);
+		*p = pgm_read_dword(&sha256_init_vector_p[c]);
 		p++; 
 	}
 	//memcpy(state->h, sha256_init_vector, 8*4);

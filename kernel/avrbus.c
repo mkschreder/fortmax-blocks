@@ -7,11 +7,11 @@
 * Released under GPLv3
 */
 
-#include "avrbus.h"
+#include "avrbus.h" 
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/delay.h>
+#include <util/delay.h> 
 
 #define SPI_is_master (SPCR & _BV(MSTR))
 #define SPI_is_slave (!SPI_is_master)

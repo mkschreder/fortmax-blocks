@@ -1,1 +1,1 @@
-obj-y += vt100.o
+obj-$(CONFIG_VT100) += vt100.o

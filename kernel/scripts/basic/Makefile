@@ -16,3 +16,6 @@
 
 # fixdep is needed to compile other host programs
 #$(addprefix $(obj)/,$(filter-out fixdep,$(always))): $(obj)/fixdep
+
+all: 
+	gcc -o fixdep fixdep.c

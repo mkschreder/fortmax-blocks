@@ -2,26 +2,28 @@ srctree		:= $(CURDIR)
 
 INCLUDES := 
 
-VPATH := arch:boards:crypto:disp:hid:io:motors:net:radio:rfid:sensors:tty
+VPATH := arch:boards:build:crypto:disp:hid:io:motors:net:radio:rfid:sensors:tty
+
+ARCH_CPU := atmega328p
+CPU_FREQ := 16000000
+CROSSCXX := g++
+CROSSCC  := gcc
+CROSSLD  := gcc
+CROSSCFLAGS := -MD -ffunction-sections -Wall -Wstrict-prototypes -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -std=c99 -fdata-sections -Os -Wl,--relax,--gc-sections
+CROSSLDFLAGS := $(INCLUDES) -ffunction-sections -fpermissive  -std=c++11 -fdata-sections -Os 
 
 include .config 
 include Makefile.build 
 
 BUILD_DIR := build
 
-ARCH_CPU := atmega328p
-CPU_FREQ := 16000000
-CROSSCXX := avr-g++
-CROSSCC  := avr-gcc
-CROSSLD  := avr-g++
 
 INCLUDES += -I. -Iinclude -Iinclude/c++ -Ikernel
 
 CROSSCXXFLAGS := $(INCLUDES) -ffunction-sections -fpermissive  -std=c++11 -fdata-sections -Os -Wl,--relax,--gc-sections -DBOARD_MULTIWII -DF_CPU=$(CPU_FREQ) -mmcu=$(ARCH_CPU)
 
-CROSSCFLAGS := $(INCLUDES) -ffunction-sections -Wall -Wstrict-prototypes -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -std=c99 -fdata-sections -Os -Wl,--relax,--gc-sections -DBOARD_MULTIWII -DF_CPU=$(CPU_FREQ) -mmcu=$(ARCH_CPU)
-
-CROSSLDFLAGS := $(INCLUDES) -ffunction-sections -fpermissive  -std=c++11 -fdata-sections -Os -DBOARD_MULTIWII -DF_CPU=$(CPU_FREQ) -mmcu=$(ARCH_CPU)
+CROSSCFLAGS += $(INCLUDES)
+CROSSLDFLAGS += $(INCLUDES)
 
 APPNAME := built-in.o
 
@@ -37,6 +39,7 @@ HOSTCC  	= gcc
 HOSTCXX  	= g++
 HOSTCFLAGS	:=
 HOSTCXXFLAGS	:=
+
 # We need some generic definitions
 include $(srctree)/scripts/Kbuild.include
 
@@ -56,6 +59,8 @@ PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
 
+obj-y := $(patsubst %, $(BUILD_DIR)/%, $(obj-y))
+
 # To avoid any implicit rule to kick in, define an empty command.
 scripts/basic/%: scripts_basic ;
 
@@ -65,25 +70,29 @@ config %config: scripts_basic FORCE
 app: build
 	make -C $(APP) build
 
-build: $(obj-y)
+fixdep: 
+	find build -type f -iname '*.d' -exec sh -c 'scripts/basic/fixdep "$${1%.*}.d" "$${1%.*}.o" "" > $${1%.*}.cmd' convert {} \;
+	
+build: fixdep $(obj-y)
 	ar rs $(APPNAME) $(obj-y)
 
-%.o: %.cpp
-	$(CROSSCXX) -c $(CROSSCXXFLAGS) $< 
+$(BUILD_DIR)/%.o: %.cpp
+	$(CROSSCXX) -c $(CROSSCXXFLAGS) $< -o $@
 
-%.o: %.c
-	$(CROSSCC) -c $(CROSSCFLAGS) $< 
-
+$(BUILD_DIR)/%.o: %.c 
+	$(CROSSCC) -c $(CROSSCFLAGS) $< -o $@
+	
 clean: 
 	@find . \( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \) \
 		-type f -print | xargs rm -f	
-	@find . \( -name 'fixdep' -o -name 'docproc' -o -name 'split-include' \
-		-o -name 'autoconf.h'  \
+	@find . \( -name 'docproc' -o -name 'split-include' \
+		  \
 		-o -name 'qconf' -o -name 'gconf' -o -name 'kxgettext' \
 		-o -name 'mconf' -o -name 'conf' -o -name 'lxdialog' \) \
 		-type f -print | xargs rm -f	
 
+-include $(obj-y:%.o=%.cmd)
 
 PHONY += FORCE
 FORCE:

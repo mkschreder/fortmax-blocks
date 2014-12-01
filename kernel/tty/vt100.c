@@ -16,8 +16,7 @@
 
 	Copyright: Martin K. Schröder (info@fortmax.se) 2014
 */
-
-#include <avr/io.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
