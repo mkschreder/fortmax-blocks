@@ -1,3 +1,0 @@
-config CRYPTO_AES
-	bool "AES encryption support"
-	
